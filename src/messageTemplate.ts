@@ -14,8 +14,8 @@ export type MessageType ={
 
 export const generateMessage = (data: MessageType) => {
   const lines = [
-    "GoaMiles BOOKING CONFIRMATION",
-    "",
+    // "GoaMiles BOOKING CONFIRMATION",
+    // "",
     `Pickup Date & Time: ${data.pickupDate} : ${data.pickupTime}`,
     "",
     `Passenger Name: ${data.passengerName}`,

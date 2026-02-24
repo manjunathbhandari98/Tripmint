@@ -98,7 +98,7 @@ const BookingForm = ({ onGenerate }: Props) => {
 
   return (
     <div>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} autoComplete="off">
         {/* Passenger Details */}
         <div className="mb-6">
           <div className="font-semibold flex gap-2 items-center text-[#075E54] pb-2">
@@ -108,7 +108,7 @@ const BookingForm = ({ onGenerate }: Props) => {
 
           <div className="mt-4 space-y-4">
             <Input label="Passenger Name" id="passengerName" />
-            <Input label="Passenger Phone" id="passengerPhone" />
+            <Input label="Passenger Phone" id="passengerPhone" type="tel" />
           </div>
         </div>
 
@@ -121,7 +121,7 @@ const BookingForm = ({ onGenerate }: Props) => {
 
           <div className="mt-4 space-y-4">
             <Input label="Driver Name" id="driverName" />
-            <Input label="Driver Phone" id="driverPhone" />
+            <Input label="Driver Phone" id="driverPhone" type="tel" />
             <Input label="Vehicle Number" id="vehicleNumber" />
           </div>
         </div>

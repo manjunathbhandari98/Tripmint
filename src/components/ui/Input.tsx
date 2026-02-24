@@ -12,6 +12,13 @@ const Input = (data: InputProps) => {
       </label>
       <input
         type={data.type}
+        inputMode={data.type === "tel" ? "numeric" : undefined}
+        pattern={data.type === "tel" ? "[0-9]*" : undefined}
+        onInput={(e) => {
+          if (data.type === "tel") {
+            e.currentTarget.value = e.currentTarget.value.replace(/\D/g, "");
+          }
+        }}
         id={data.id}
         placeholder={`Enter ${data.label}`}
         className="bg-[#f0f2f5] border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#25D366] focus:border-transparent transition"

@@ -7,36 +7,40 @@ import Footer from "./Footer";
 import Header from "./Header";
 
 const MainLayout = () => {
-  const [booking, setBooking] = useState<MessageType | null>(null);
   const [message, setMessage] = useState("");
+  const [driverPhone, setDriverPhone] = useState("");
+  const [passengerPhone, setPassengerPhone] = useState("");
 
   const handleGenerate = (formData: MessageType) => {
-    setBooking(formData);
     const formattedMessage = generateMessage(formData);
+
     setMessage(formattedMessage);
+    setDriverPhone(formData.driverNumber);
+    setPassengerPhone(formData.passengerPhone);
   };
 
   return (
     <div className="main h-full w-screen bg-gray-100">
       <Header />
       <Toaster position="bottom-right" />
+
       <div className="container max-w-6xl mx-auto px-4 py-6">
         <div className="grid lg:grid-cols-5 gap-6">
-          {/* Form */}
           <div className="lg:col-span-3 bg-white rounded-lg p-5 shadow-sm">
             <BookingForm onGenerate={handleGenerate} />
           </div>
 
-          {/* Preview */}
           <div className="lg:col-span-2">
             <MessagePreview
               message={message}
-              driverPhone={booking?.driverNumber || ""}
-              passengerPhone={booking?.passengerPhone || ""}
+              driverPhone={driverPhone}
+              passengerPhone={passengerPhone}
+              onMessageUpdate={setMessage}
             />
           </div>
         </div>
       </div>
+
       <Footer />
     </div>
   );

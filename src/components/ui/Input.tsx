@@ -2,25 +2,39 @@ type InputProps = {
   label: string;
   id: string;
   type?: string;
+  defaultValue?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 };
 
-const Input = (data: InputProps) => {
+const Input = ({
+  label,
+  id,
+  type = "text",
+  defaultValue,
+  value,
+  onChange,
+}: InputProps) => {
   return (
     <div className="flex flex-col gap-1 w-full">
-      <label htmlFor={data.id} className="text-sm font-medium text-gray-600">
-        {data.label}
+      <label htmlFor={id} className="text-sm font-medium text-gray-600">
+        {label}
       </label>
+
       <input
-        type={data.type}
-        inputMode={data.type === "tel" ? "numeric" : undefined}
-        pattern={data.type === "tel" ? "[0-9]*" : undefined}
+        id={id}
+        type={type}
+        defaultValue={defaultValue}
+        value={value}
+        onChange={onChange}
+        inputMode={type === "tel" ? "numeric" : undefined}
+        pattern={type === "tel" ? "[0-9]*" : undefined}
         onInput={(e) => {
-          if (data.type === "tel") {
+          if (type === "tel") {
             e.currentTarget.value = e.currentTarget.value.replace(/\D/g, "");
           }
         }}
-        id={data.id}
-        placeholder={`Enter ${data.label}`}
+        placeholder={`Enter ${label}`}
         className="bg-[#f0f2f5] border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#25D366] focus:border-transparent transition"
       />
     </div>

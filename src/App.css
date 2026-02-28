@@ -11,3 +11,9 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+.input-style {
+  @apply w-full px-4 py-2 rounded-lg border border-gray-300 text-sm
+  focus:outline-none focus:ring-2 focus:ring-[#25D366]
+  transition;
+}

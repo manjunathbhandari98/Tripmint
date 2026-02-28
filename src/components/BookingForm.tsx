@@ -2,6 +2,7 @@ import { MapPin, RotateCcw, Sparkles, User } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import type { MessageType } from "../messageTemplate";
+import LocationInput from "./ui/LocationInput";
 
 export type DraftType = MessageType & {
   id: string;
@@ -159,13 +160,10 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
 
         {formData.pickupLocations.map((loc, i) => (
           <div key={i} className="flex gap-2">
-            <input
+            <LocationInput
               value={loc}
-              onChange={(e) =>
-                updateLocation("pickupLocations", i, e.target.value)
-              }
+              onChange={(val) => updateLocation("pickupLocations", i, val)}
               placeholder={`Pickup ${i + 1}`}
-              className="input-style flex-1"
             />
             {formData.pickupLocations.length > 1 && (
               <button
@@ -196,13 +194,10 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
 
         {formData.dropLocations.map((loc, i) => (
           <div key={i} className="flex gap-2">
-            <input
+            <LocationInput
               value={loc}
-              onChange={(e) =>
-                updateLocation("dropLocations", i, e.target.value)
-              }
+              onChange={(val) => updateLocation("dropLocations", i, val)}
               placeholder={`Drop ${i + 1}`}
-              className="input-style flex-1"
             />
             {formData.dropLocations.length > 1 && (
               <button

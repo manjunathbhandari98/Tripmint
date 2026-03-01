@@ -3,7 +3,8 @@ import { useState } from "react";
 const GOA_LOCATION_SUGGESTIONS = [
   "Manohar International Airport (GOX) - Goa",
   "Dabolim International Airport (GOI) - Goa",
-  "Multi Level Car Parking",
+  "Multi Level Car Park",
+  "Panaji Bus Stand",
 ];
 
 const LocationInput = ({

@@ -1,4 +1,14 @@
-import { Car, Copy, Edit3, MessageCircle, Save, Send } from "lucide-react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import {
+  Car,
+  Check,
+  Copy,
+  Edit3,
+  MessageCircle,
+  Save,
+  Send,
+} from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 
@@ -17,6 +27,7 @@ const MessagePreview = ({
 }: MessagePreviewProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editableMessage, setEditableMessage] = useState("");
+  const [isCopied, setIsCopied] = useState(false);
   const [otherNumber, setOtherNumber] = useState("");
 
   const finalMessage = isEditing ? editableMessage : message;
@@ -27,15 +38,27 @@ const MessagePreview = ({
   };
 
   const handleSave = () => {
-    onMessageUpdate(editableMessage); // 🔥 update parent
+    onMessageUpdate(editableMessage);
     setIsEditing(false);
     toast.success("Message updated.");
   };
 
   const handleCopy = async () => {
     if (!finalMessage) return;
-    await navigator.clipboard.writeText(finalMessage);
-    toast.success("Message Copied!");
+
+    try {
+      await navigator.clipboard.writeText(finalMessage);
+
+      setIsCopied(true);
+      toast.success("Message Copied!");
+
+      const timer = setTimeout(() => {
+        setIsCopied(false);
+        clearTimeout(timer);
+      }, 2000);
+    } catch (error: any) {
+      toast.error("Failed to copy message.");
+    }
   };
 
   const sendWhatsApp = (phone: string) => {
@@ -88,13 +111,22 @@ const MessagePreview = ({
           </div>
 
           {message && (
-            <button
-              onClick={isEditing ? handleSave : handleEdit}
-              className="text-sm flex items-center gap-1 text-[#075E54] hover:text-[#168c41] transition"
-            >
-              {isEditing ? <Save size={16} /> : <Edit3 size={16} />}
-              {isEditing ? "Save" : "Edit"}
-            </button>
+            <div className="flex gap-5 items-center">
+              <div>
+                {isCopied ? (
+                  <Check size={20} />
+                ) : (
+                  <Copy onClick={handleCopy} color="gray" size={20} />
+                )}
+              </div>
+              <button
+                onClick={isEditing ? handleSave : handleEdit}
+                className="text-sm flex items-center gap-1 text-[#075E54] hover:text-[#168c41] transition"
+              >
+                {isEditing ? <Save size={16} /> : <Edit3 size={16} />}
+                {isEditing ? "Save" : "Edit"}
+              </button>
+            </div>
           )}
         </div>
 

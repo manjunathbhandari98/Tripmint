@@ -1,4 +1,4 @@
-import { MapPin, RotateCcw, Sparkles, User } from "lucide-react";
+import { ArrowUpDown, MapPin, RotateCcw, Sparkles, User } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import type { MessageType } from "../messageTemplate";
@@ -127,6 +127,16 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     toast("Form cleared.");
   };
 
+  const handleSwapLocations = () => {
+    setFormData((prev) => ({
+      ...prev,
+      pickupLocations: [...prev.dropLocations],
+      dropLocations: [...prev.pickupLocations],
+    }));
+
+    toast("Pickup & Drop switched 🔄");
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Passenger Section */}
@@ -153,71 +163,104 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
       </section>
 
       {/* Pickup Locations */}
-      <section className="space-y-3">
-        <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
-          <MapPin size={18} /> Pickup Locations
-        </h3>
+      <section className="space-y-4">
+        {/* Pickup Section */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
+              <MapPin size={18} />
+              Pickup Locations
+            </h3>
 
-        {formData.pickupLocations.map((loc, i) => (
-          <div key={i} className="flex gap-2">
-            <LocationInput
-              value={loc}
-              onChange={(val) => updateLocation("pickupLocations", i, val)}
-              placeholder={`Pickup ${i + 1}`}
-            />
-            {formData.pickupLocations.length > 1 && (
-              <button
-                type="button"
-                onClick={() => removeLocation("pickupLocations", i)}
-                className="text-red-500"
-              >
-                ✕
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleSwapLocations}
+              className="flex items-center gap-1 text-xs 
+               px-3 py-1.5 rounded-lg 
+               bg-gray-100 hover:bg-[#25D366] 
+               text-gray-600 hover:text-white 
+               transition-all duration-200"
+            >
+              <ArrowUpDown size={14} />
+              Swap
+            </button>
           </div>
-        ))}
 
-        <button
-          type="button"
-          onClick={() => addLocation("pickupLocations")}
-          className="text-sm text-[#075E54]"
-        >
-          + Add Pickup
-        </button>
+          {formData.pickupLocations.map((loc, i) => (
+            <div key={i} className="flex gap-2">
+              <LocationInput
+                value={loc}
+                onChange={(val) => updateLocation("pickupLocations", i, val)}
+                placeholder={`Pickup ${i + 1}`}
+              />
+
+              {formData.pickupLocations.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeLocation("pickupLocations", i)}
+                  className="text-red-500 hover:text-red-600"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => addLocation("pickupLocations")}
+            className="text-sm text-[#075E54] font-medium hover:underline"
+          >
+            + Add Pickup
+          </button>
+        </div>
+
+        {/* Drop Section */}
+        <div className="space-y-3">
+          <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
+            <MapPin size={18} /> Drop Locations
+          </h3>
+
+          {formData.dropLocations.map((loc, i) => (
+            <div key={i} className="flex gap-2">
+              <LocationInput
+                value={loc}
+                onChange={(val) => updateLocation("dropLocations", i, val)}
+                placeholder={`Drop ${i + 1}`}
+              />
+
+              {formData.dropLocations.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeLocation("dropLocations", i)}
+                  className="text-red-500 hover:text-red-600"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => addLocation("dropLocations")}
+            className="text-sm text-[#075E54] font-medium hover:underline"
+          >
+            + Add Drop
+          </button>
+        </div>
       </section>
+      <section className="space-y-2">
+        <h4 className="text-sm font-medium text-gray-600">
+          Location Link (Optional)
+        </h4>
 
-      {/* Drop Locations */}
-      <section className="space-y-3">
-        <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
-          <MapPin size={18} /> Drop Locations
-        </h3>
-
-        {formData.dropLocations.map((loc, i) => (
-          <div key={i} className="flex gap-2">
-            <LocationInput
-              value={loc}
-              onChange={(val) => updateLocation("dropLocations", i, val)}
-              placeholder={`Drop ${i + 1}`}
-            />
-            {formData.dropLocations.length > 1 && (
-              <button
-                type="button"
-                onClick={() => removeLocation("dropLocations", i)}
-                className="text-red-500"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        ))}
-
-        <button
-          type="button"
-          onClick={() => addLocation("dropLocations")}
-          className="text-sm text-[#075E54]"
-        >
-          + Add Drop
-        </button>
+        <input
+          value={formData.locationLink}
+          onChange={(e) => updateField("locationLink", e.target.value)}
+          placeholder="Google Maps link"
+          className="input-style"
+        />
       </section>
 
       {/* Other Fields */}

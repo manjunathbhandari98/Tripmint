@@ -39,10 +39,10 @@ const Header = () => {
 
       {/* Right Date & Time */}
       <div className="text-right">
-        <p className="text-sm font-medium text-gray-500">{formattedDate}</p>
+        {/* <p className="text-sm font-medium text-gray-500">{formattedDate}</p>
         <p className="text-lg font-semibold text-[#075E54] tracking-wide">
           {formattedTime}
-        </p>
+        </p> */}
       </div>
     </div>
   );

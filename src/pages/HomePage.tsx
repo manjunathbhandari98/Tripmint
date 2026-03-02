@@ -1,7 +1,7 @@
-import MainLayout from "../layout/MainLayout";
+import AppWrapper from "../layout/AppWrapper";
 
 const HomePage = () => {
-  return <MainLayout />;
+  return <AppWrapper />;
 };
 
 export default HomePage;

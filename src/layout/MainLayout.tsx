@@ -63,7 +63,7 @@ const MainLayout = () => {
         {/* LEFT FORM */}
         <div className="bg-white p-6 rounded-xl shadow-sm">
           <BookingForm
-            key={loadedDraft?.id || "new"}
+            key={loadedDraft ? loadedDraft.id + loadedDraft.savedAt : "new"}
             onGenerate={handleGenerate}
             onSaveDraft={handleSaveDraft}
             initialDraft={loadedDraft}
@@ -84,45 +84,59 @@ const MainLayout = () => {
           {/* Drafts Below Preview */}
           {/* Draft Section */}
           <div className="bg-white p-6 rounded-xl shadow-sm">
-            <h3 className="font-semibold text-[#075E54] mb-4">Saved Drafts</h3>
+            <h3 className="font-semibold text-[#075E54] mb-5">Saved Drafts</h3>
 
-            {/* Search Input */}
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search passenger..."
-              className="w-full px-4 py-2 mb-4 border rounded-lg text-sm focus:ring-2 focus:ring-[#25D366]"
+              className="w-full px-4 py-2 mb-6 
+               rounded-lg text-sm 
+               bg-gray-50
+               focus:outline-none 
+               focus:ring-2 focus:ring-[#25D366]"
             />
 
             {filteredDrafts.length === 0 && (
               <p className="text-sm text-gray-400">No drafts found.</p>
             )}
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {filteredDrafts.map((draft) => (
                 <div
                   key={draft.id}
-                  className="border p-3 rounded-lg flex justify-between items-center"
+                  className="flex justify-between items-center 
+                   group transition"
                 >
+                  {/* LEFT */}
                   <div>
-                    <p className="font-medium">
+                    <p className="text-sm font-medium text-gray-800 group-hover:text-[#075E54] transition">
                       {draft.passengerName || "Unnamed Ride"}
                     </p>
+
                     <p className="text-xs text-gray-400">
                       {new Date(draft.savedAt).toLocaleString("en-IN")}
                     </p>
                   </div>
 
-                  <div className="flex gap-3 text-sm">
+                  {/* RIGHT ACTIONS */}
+                  <div className="flex items-center gap-4 opacity-70 group-hover:opacity-100 transition">
                     <button
-                      onClick={() => setLoadedDraft(draft)}
-                      className="text-blue-600"
+                      onClick={() => setLoadedDraft({ ...draft })}
+                      className="text-xs font-medium 
+                       text-[#075E54] 
+                       hover:text-[#168c41] 
+                       transition"
                     >
                       Load
                     </button>
+
                     <button
                       onClick={() => deleteDraft(draft.id)}
-                      className="text-red-500"
+                      className="text-xs font-medium 
+                       text-gray-400 
+                       hover:text-red-500 
+                       transition"
                     >
                       Delete
                     </button>

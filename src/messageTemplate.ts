@@ -47,63 +47,63 @@ export const generateMessage = (data: MessageType): string => {
   const lines: string[] = [];
 
   if (data.pickupDate !== "N/A") {
-    lines.push(`📅 Date & Time: ${data.pickupDate} at ${data.pickupTime}`);
+    lines.push(`Pickup Date & Time: ${data.pickupDate} at ${data.pickupTime}`);
     lines.push("");
   }
 
   if (data.bookingMode === "single") {
-    lines.push(`👤 Passenger: ${data.passengerName}`);
-    lines.push(`📞 Phone: ${data.passengerPhone}`);
+    lines.push(`Passenger Name: ${data.passengerName}`);
+    lines.push(`Passenger Phone: ${data.passengerPhone}`);
     lines.push("");
-    lines.push("📍 Pickup:");
+    lines.push("Pickup:");
     data.pickupLocations.forEach((loc) => lines.push(`   ${loc.trim()}`));
     lines.push("");
-    lines.push("🏁 Drop:");
+    lines.push("Drop:");
     data.dropLocations.forEach((loc) => lines.push(`   ${loc.trim()}`));
     if (data.locationLink) {
       lines.push("");
-      lines.push(`🗺 Map: ${data.locationLink}`);
+      lines.push(`${data.locationLink}`);
     }
   }
 
   if (data.bookingMode === "same_pickup") {
-    lines.push(`📍 Common Pickup: ${data.sharedLocation}`);
-    if (data.sharedLocationLink) lines.push(`🗺 Map: ${data.sharedLocationLink}`);
+    lines.push(`Pickup: ${data.sharedLocation}`);
+    if (data.sharedLocationLink) lines.push(`${data.sharedLocationLink}`);
     lines.push("");
-    lines.push(`👥 Passengers (${data.passengers.length}):`);
+    lines.push(`Passengers (${data.passengers.length}):`);
     data.passengers.forEach((p, i) => {
       lines.push("");
       lines.push(`  ${i + 1}. ${p.name} — 📞 ${p.phone}`);
-      lines.push(`     🏁 Drop: ${p.individualLocation}`);
-      if (p.locationLink) lines.push(`     🗺 Map: ${p.locationLink}`);
+      lines.push(`Drop: ${p.individualLocation}`);
+      if (p.locationLink) lines.push(`     ${p.locationLink}`);
     });
   }
 
   if (data.bookingMode === "same_drop") {
-    lines.push(`🏁 Common Drop: ${data.sharedLocation}`);
-    if (data.sharedLocationLink) lines.push(`🗺 Map: ${data.sharedLocationLink}`);
+    lines.push(`Drop: ${data.sharedLocation}`);
+    if (data.sharedLocationLink) lines.push(`${data.sharedLocationLink}`);
     lines.push("");
-    lines.push(`👥 Passengers (${data.passengers.length}):`);
+    lines.push(`Passengers (${data.passengers.length}):`);
     data.passengers.forEach((p, i) => {
       lines.push("");
       lines.push(`  ${i + 1}. ${p.name} — 📞 ${p.phone}`);
-      lines.push(`     📍 Pickup: ${p.individualLocation}`);
-      if (p.locationLink) lines.push(`     🗺 Map: ${p.locationLink}`);
+      lines.push(`Pickup: ${p.individualLocation}`);
+      if (p.locationLink) lines.push(`${p.locationLink}`);
     });
   }
 
   lines.push("");
-  lines.push("─────────────────────");
-  lines.push(`🚗 Driver: ${data.driverName}`);
-  lines.push(`📞 Driver Phone: ${data.driverNumber}`);
-  lines.push(`🔢 Vehicle: ${data.vehicleNumber}`);
-  if (data.otp && data.otp !== "N/A") lines.push(`🔑 OTP: ${data.otp}`);
+  // lines.push("─────────────────────");
+  lines.push(`Driver Name: ${data.driverName}`);
+  lines.push(`Driver Phone: ${data.driverNumber}`);
+  lines.push(`Vehicle Number: ${data.vehicleNumber}`);
+  if (data.otp && data.otp !== "N/A") lines.push(`OTP: ${data.otp}`);
   if (data.additionalNotes) {
     lines.push("");
-    lines.push(`📝 Notes: ${data.additionalNotes}`);
+    lines.push(`${data.additionalNotes}`);
   }
   lines.push("");
-  lines.push("Thank you! 🙏");
+  lines.push("Thank you");
 
   return lines.join("\n");
 };

@@ -38,6 +38,7 @@ const LocationInput = ({
         onKeyDown={(e) => {
           if (!show || filtered.length === 0) return;
 
+          // ↓ Navigate Down
           if (e.key === "ArrowDown") {
             e.preventDefault();
             setHighlightedIndex((prev) =>
@@ -45,15 +46,28 @@ const LocationInput = ({
             );
           }
 
+          // ↑ Navigate Up
           if (e.key === "ArrowUp") {
             e.preventDefault();
             setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : 0));
           }
 
-          if (e.key === "Enter" && highlightedIndex >= 0) {
+          // Enter Behavior
+          if (e.key === "Enter") {
             e.preventDefault();
-            onChange(filtered[highlightedIndex]);
-            setShow(false);
+
+            // if only ONE suggestion → auto select it
+            if (filtered.length === 1) {
+              onChange(filtered[0]);
+              setShow(false);
+              return;
+            }
+
+            // If multiple & something highlighted → select highlighted
+            if (highlightedIndex >= 0) {
+              onChange(filtered[highlightedIndex]);
+              setShow(false);
+            }
           }
         }}
         onFocus={() => {

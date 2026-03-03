@@ -6,7 +6,7 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import crewDatabase from "../data/crewDatabase";
 import type { BookingMode, MessageType, Passenger } from "../messageTemplate";
@@ -262,8 +262,18 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
   const [includeOTP, setIncludeOTP] = useState(true);
   const [includeDateTime, setIncludeDateTime] = useState(true);
 
-  const today = new Date().toISOString().split("T")[0];
-  const currentTime = new Date().toTimeString().slice(0, 5);
+  const { today, currentTime, tomorrow } = useMemo(() => {
+    const now = new Date();
+
+    const today = now.toISOString().split("T")[0];
+    const currentTime = now.toTimeString().slice(0, 5);
+
+    const tmr = new Date(now);
+    tmr.setDate(now.getDate() + 1);
+    const tomorrow = tmr.toISOString().split("T")[0];
+
+    return { today, currentTime, tomorrow };
+  }, []);
 
   const set = (key: keyof MessageType, value: unknown) =>
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -693,28 +703,48 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
               Pickup Date & Time
             </label>
 
-            <div className="flex gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => set("pickupDate", today)}
-                className="px-3 py-1 rounded-full 
-                   bg-gray-100 hover:bg-[#25D366] 
-                   hover:text-white transition"
-              >
-                Today
-              </button>
+            <div className="flex items-center gap-3 text-xs">
+              {/* Primary Quick Actions */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => set("pickupDate", today)}
+                  className="px-3 py-1 rounded-full 
+        bg-gray-100 hover:bg-[#25D366] 
+        hover:text-white transition"
+                >
+                  Today
+                </button>
 
+                <button
+                  type="button"
+                  onClick={() => {
+                    set("pickupDate", today);
+                    set("pickupTime", currentTime);
+                  }}
+                  className="px-3 py-1 rounded-full 
+        bg-gray-100 hover:bg-[#075E54] 
+        hover:text-white transition"
+                >
+                  Now
+                </button>
+              </div>
+
+              {/* Divider */}
+              <div className="h-4 w-px bg-gray-300" />
+
+              {/* Secondary Option */}
               <button
                 type="button"
-                onClick={() => {
-                  set("pickupDate", today);
-                  set("pickupTime", currentTime);
-                }}
+                onClick={() => set("pickupDate", tomorrow)}
                 className="px-3 py-1 rounded-full 
-                   bg-gray-100 hover:bg-[#075E54] 
-                   hover:text-white transition"
+      border border-gray-300 
+      text-gray-600 
+      hover:border-[#25D366] 
+      hover:text-[#25D366] 
+      transition"
               >
-                Now
+                Tomorrow
               </button>
             </div>
           </div>

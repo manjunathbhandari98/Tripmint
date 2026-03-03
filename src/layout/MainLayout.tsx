@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
 import { Toaster } from "react-hot-toast";
 import BookingForm, { type DraftType } from "../components/BookingForm";
 import MessagePreview from "../components/MessagePreview";
@@ -11,6 +12,7 @@ const DRAFT_KEY = "tripmint_drafts";
 const MainLayout = () => {
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
+  const previewRef = useRef<HTMLDivElement>(null);
   const [drafts, setDrafts] = useState<DraftType[]>(() => {
     const saved = localStorage.getItem(DRAFT_KEY);
     if (!saved) return [];
@@ -33,6 +35,13 @@ const MainLayout = () => {
 
   const handleGenerate = (data: MessageType) => {
     setMessage(generateMessage(data));
+
+    setTimeout(() => {
+      previewRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   };
 
   const handleSaveDraft = (draft: DraftType) => {
@@ -54,6 +63,42 @@ const MainLayout = () => {
     draft.passengerName?.toLowerCase().includes(search.toLowerCase()),
   );
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl + Enter → Generate
+      if (e.ctrlKey && e.key === "Enter") {
+        e.preventDefault();
+        const form = document.querySelector("form");
+        form?.dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+      }
+
+      // Ctrl + S → Save Draft
+      if (e.ctrlKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        const saveBtn = document.querySelector(
+          'button[type="button"][data-save="draft"]',
+        ) as HTMLButtonElement | null;
+
+        saveBtn?.click();
+      }
+
+      // Ctrl + D → Today
+      if (e.ctrlKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        const todayBtn = document.querySelector(
+          '[data-action="today"]',
+        ) as HTMLButtonElement | null;
+
+        todayBtn?.click();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
@@ -72,7 +117,7 @@ const MainLayout = () => {
 
         {/* RIGHT SIDE */}
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm">
+          <div ref={previewRef} className="bg-white p-6 rounded-xl shadow-sm">
             <MessagePreview
               message={message}
               driverPhone=""

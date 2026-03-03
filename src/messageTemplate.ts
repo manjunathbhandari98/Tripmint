@@ -64,7 +64,7 @@ export const generateMessage = (data: MessageType): string => {
       lines.push("");
       lines.push(`${data.locationLink}`);
     }
-  }
+  } 
 
   if (data.bookingMode === "same_pickup") {
     lines.push(`Pickup: ${data.sharedLocation}`);
@@ -97,6 +97,7 @@ export const generateMessage = (data: MessageType): string => {
   lines.push(`Driver Name: ${data.driverName}`);
   lines.push(`Driver Phone: ${data.driverNumber}`);
   lines.push(`Vehicle Number: ${data.vehicleNumber}`);
+  lines.push("");
   if (data.otp && data.otp !== "N/A") lines.push(`OTP: ${data.otp}`);
   if (data.additionalNotes) {
     lines.push("");

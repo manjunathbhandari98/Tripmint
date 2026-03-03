@@ -399,7 +399,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
           { label: "Include OTP", state: includeOTP, toggle: () => setIncludeOTP(!includeOTP) },
           { label: "Include Date & Time", state: includeDateTime, toggle: () => setIncludeDateTime(!includeDateTime) },
         ].map(({ label, state, toggle }) => (
-          <div key={label} className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-xl w-full sm:w-auto min-w-[220px] border border-gray-200">
+          <div key={label} className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-xl w-full sm:w-auto border border-gray-200">
             <span className="text-sm font-medium text-gray-700">{label}</span>
             <button
               type="button"

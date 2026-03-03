@@ -144,7 +144,7 @@ const MessagePreview = ({
             <textarea
               value={editableMessage}
               onChange={(e) => setEditableMessage(e.target.value)}
-              className="w-full min-h-[300px] resize-none 
+              className="w-full min-h-75 resize-none 
                          text-sm text-gray-800 leading-relaxed 
                          font-medium outline-none border border-gray-200 
                          rounded-lg p-4"

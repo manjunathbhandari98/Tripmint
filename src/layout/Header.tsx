@@ -1,29 +1,4 @@
-import { useEffect, useState } from "react";
-
 const Header = () => {
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const formattedDate = currentTime.toLocaleDateString("en-IN", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-
-  const formattedTime = currentTime.toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-
   return (
     <div className="w-full h-20 bg-white shadow-md px-10 flex justify-between items-center">
       {/* Left Logo */}

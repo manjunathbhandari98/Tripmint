@@ -13,7 +13,12 @@ import type { BookingMode, MessageType, Passenger } from "../messageTemplate";
 import DriverSearchInput from "./ui/DriverSearchInput";
 import LocationInput from "./ui/LocationInput";
 
-export type DraftType = MessageType & { id: string; savedAt: string };
+// ── DraftType now includes bulk so multi-passenger drafts round-trip correctly ──
+export type DraftType = MessageType & {
+  id: string;
+  savedAt: string;
+  bulk?: { names: string; phones: string; locations: string };
+};
 
 interface Props {
   onGenerate: (data: MessageType) => void;
@@ -47,10 +52,41 @@ const emptyForm: MessageType = {
   additionalNotes: "",
 };
 
+interface BulkInput {
+  names: string;
+  phones: string;
+  locations: string;
+}
+
+const emptyBulk: BulkInput = { names: "", phones: "", locations: "" };
+
 const phoneRegex = /^[0-9]{10}$/;
 const otpRegex = /^[0-9]{4,6}$/;
 
-// ── Crew Autocomplete Input ─────────────────────────────────────────
+const parseLines = (raw: string): string[] =>
+  raw
+    .split("\n")
+    .map((line) => line.split("\t")[0].trim())
+    .filter(Boolean);
+
+// Reconstruct bulk text from a saved passengers array (for loading old drafts
+// that were saved before bulk was introduced)
+const passengersToBulk = (passengers: Passenger[]): BulkInput => ({
+  names: passengers
+    .map((p) => p.name)
+    .filter(Boolean)
+    .join("\n"),
+  phones: passengers
+    .map((p) => p.phone)
+    .filter(Boolean)
+    .join("\n"),
+  locations: passengers
+    .map((p) => p.individualLocation)
+    .filter(Boolean)
+    .join("\n"),
+});
+
+// ── Crew Autocomplete ───────────────────────────────────────────────
 interface CrewAutocompleteProps {
   value: string;
   onSelect: (
@@ -72,12 +108,10 @@ const CrewAutocomplete = ({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Sync external value changes (e.g. clear form)
   useEffect(() => {
     setQuery(value);
   }, [value]);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node))
@@ -104,7 +138,6 @@ const CrewAutocomplete = ({
       setSuggestions([]);
       setOpen(false);
     }
-    // Keep name in sync even if not selected from DB
     onSelect(q, "", "", "");
   };
 
@@ -116,21 +149,15 @@ const CrewAutocomplete = ({
 
   return (
     <div ref={ref} className="relative">
-      <div className="relative">
-        {/* <Search
-          size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-        /> */}
-        <input
-          value={query}
-          onChange={handleChange}
-          onFocus={() =>
-            query.length >= 2 && suggestions.length > 0 && setOpen(true)
-          }
-          placeholder={placeholder}
-          className="input-style pl-8"
-        />
-      </div>
+      <input
+        value={query}
+        onChange={handleChange}
+        onFocus={() =>
+          query.length >= 2 && suggestions.length > 0 && setOpen(true)
+        }
+        placeholder={placeholder}
+        className="input-style"
+      />
       {open && (
         <ul className="absolute z-50 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg mt-1 max-h-60 overflow-y-auto">
           {suggestions.map((crew) => (
@@ -156,129 +183,45 @@ const CrewAutocomplete = ({
   );
 };
 
-// ── Multi-passenger Crew Autocomplete (inline) ──────────────────────
-interface PassengerAutocompleteProps {
-  value: string;
-  onSelect: (
-    name: string,
-    phone: string,
-    location: string,
-    locationLink: string,
-  ) => void;
-}
-
-const PassengerAutocomplete = ({
-  value,
-  onSelect,
-}: PassengerAutocompleteProps) => {
-  const [query, setQuery] = useState(value);
-  const [suggestions, setSuggestions] = useState<typeof crewDatabase>([]);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setQuery(value);
-  }, [value]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const q = e.target.value;
-    setQuery(q);
-    onSelect(q, "", "", "");
-    if (q.length >= 2) {
-      const lower = q.toLowerCase();
-      const matches = crewDatabase.filter(
-        (c) => c.name.toLowerCase().includes(lower) || c.phone.includes(q),
-      );
-      setSuggestions(matches.slice(0, 8));
-      setOpen(matches.length > 0);
-    } else {
-      setSuggestions([]);
-      setOpen(false);
-    }
-  };
-
-  const handlePick = (crew: (typeof crewDatabase)[0]) => {
-    setQuery(crew.name);
-    setOpen(false);
-    onSelect(crew.name, crew.phone, crew.address, crew.locationLink);
-  };
-
-  return (
-    <div ref={ref} className="relative">
-      <div className="relative">
-        {/* <Search
-          size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-        /> */}
-        <input
-          value={query}
-          onChange={handleChange}
-          onFocus={() =>
-            query.length >= 2 && suggestions.length > 0 && setOpen(true)
-          }
-          placeholder="Name"
-          className="input-style pl-8"
-        />
-      </div>
-      {open && (
-        <ul className="absolute z-50 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg mt-1 max-h-52 overflow-y-auto">
-          {suggestions.map((crew) => (
-            <li
-              key={crew.id}
-              onMouseDown={() => handlePick(crew)}
-              className="px-4 py-2 hover:bg-[#e8faf0] cursor-pointer border-b last:border-0"
-            >
-              <p className="font-medium text-sm text-gray-800">{crew.name}</p>
-              <p className="text-xs text-gray-500">
-                {crew.designation} · {crew.location} · {crew.phone}
-              </p>
-              {crew.bookingLeadTime && (
-                <p className="text-xs text-[#075E54] font-medium">
-                  ⏱ Book {crew.bookingLeadTime} prior
-                </p>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-};
-
 // ── Main BookingForm ────────────────────────────────────────────────
 const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
   const [formData, setFormData] = useState<MessageType>(
     initialDraft || emptyForm,
   );
+
+  // Restore bulk from draft — prefer saved bulk, fall back to reconstructing from passengers array
+  const [bulk, setBulk] = useState<BulkInput>(() => {
+    if (!initialDraft) return emptyBulk;
+    if (initialDraft.bulk) return initialDraft.bulk;
+    if (
+      initialDraft.bookingMode !== "single" &&
+      initialDraft.passengers?.length
+    ) {
+      return passengersToBulk(initialDraft.passengers);
+    }
+    return emptyBulk;
+  });
+
   const [includeOTP, setIncludeOTP] = useState(true);
   const [includeDateTime, setIncludeDateTime] = useState(true);
 
   const { today, currentTime, tomorrow } = useMemo(() => {
     const now = new Date();
-
     const today = now.toISOString().split("T")[0];
     const currentTime = now.toTimeString().slice(0, 5);
-
     const tmr = new Date(now);
     tmr.setDate(now.getDate() + 1);
     const tomorrow = tmr.toISOString().split("T")[0];
-
     return { today, currentTime, tomorrow };
   }, []);
 
   const set = (key: keyof MessageType, value: unknown) =>
     setFormData((prev) => ({ ...prev, [key]: value }));
 
-  const setMode = (mode: BookingMode) => set("bookingMode", mode);
+  const setMode = (mode: BookingMode) => {
+    set("bookingMode", mode);
+    setBulk(emptyBulk);
+  };
 
   // ── Single mode helpers ──────────────────────────────────────────
   const updateLoc = (
@@ -307,23 +250,18 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     toast("Pickup & Drop switched 🔄");
   };
 
-  // ── Multi-passenger helpers ──────────────────────────────────────
-  const updatePassenger = (
-    i: number,
-    field: keyof Passenger,
-    value: string,
-  ) => {
-    const arr = [...formData.passengers];
-    arr[i] = { ...arr[i], [field]: value };
-    set("passengers", arr);
+  // ── Build passengers from bulk — no fill-down ────────────────────
+  const buildPassengersFromBulk = (): Passenger[] => {
+    const names = parseLines(bulk.names);
+    const phones = parseLines(bulk.phones);
+    const locs = parseLines(bulk.locations);
+    return names.map((name, i) => ({
+      name,
+      phone: phones[i] ?? "",
+      individualLocation: locs[i] ?? "",
+      locationLink: "",
+    }));
   };
-  const addPassenger = () =>
-    set("passengers", [...formData.passengers, emptyPassenger()]);
-  const removePassenger = (i: number) =>
-    set(
-      "passengers",
-      formData.passengers.filter((_, idx) => idx !== i),
-    );
 
   // ── Validation ───────────────────────────────────────────────────
   const validate = (): boolean => {
@@ -348,19 +286,19 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         toast.error("Enter the shared location.");
         return false;
       }
-      for (let i = 0; i < formData.passengers.length; i++) {
-        const p = formData.passengers[i];
-        if (!p.name.trim() || !p.phone.trim() || !p.individualLocation.trim()) {
-          toast.error(`Passenger ${i + 1}: fill name, phone, and location.`);
-          return false;
-        }
-        if (!phoneRegex.test(p.phone)) {
-          toast.error(`Passenger ${i + 1}: phone must be 10 digits.`);
+      const names = parseLines(bulk.names);
+      if (names.length === 0) {
+        toast.error("Add at least one passenger name.");
+        return false;
+      }
+      const phones = parseLines(bulk.phones);
+      for (let i = 0; i < phones.length; i++) {
+        if (!phoneRegex.test(phones[i])) {
+          toast.error(`Phone on line ${i + 1} must be 10 digits.`);
           return false;
         }
       }
     }
-
     if (!formData.pickupDate || !formData.pickupTime) {
       toast.error("Select pickup date and time.");
       return false;
@@ -381,8 +319,14 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     e.preventDefault();
     if (!validate()) return;
 
+    const passengers =
+      formData.bookingMode !== "single"
+        ? buildPassengersFromBulk()
+        : formData.passengers;
+
     onGenerate({
       ...formData,
+      passengers,
       pickupLocations: formData.pickupLocations.filter(Boolean),
       dropLocations: formData.dropLocations.filter(Boolean),
       pickupDate: includeDateTime ? formData.pickupDate : "N/A",
@@ -392,9 +336,16 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     toast.success("Message generated.");
   };
 
+  // ── Save Draft — include bulk so it round-trips ──────────────────
   const handleSaveDraft = () => {
     const draft: DraftType = {
       ...formData,
+      // For multi-passenger, persist the built passengers too (for display in draft list)
+      passengers:
+        formData.bookingMode !== "single"
+          ? buildPassengersFromBulk()
+          : formData.passengers,
+      bulk: formData.bookingMode !== "single" ? bulk : undefined,
       id: crypto.randomUUID(),
       savedAt: new Date().toISOString(),
     };
@@ -404,6 +355,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
 
   const handleClear = () => {
     setFormData(emptyForm);
+    setBulk(emptyBulk);
     toast("Form cleared.");
   };
 
@@ -413,8 +365,12 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
       : "Common Drop Location";
   const individualLabel =
     formData.bookingMode === "same_pickup"
-      ? "Drop Location"
-      : "Pickup Location";
+      ? "Drop location(s)"
+      : "Pickup location(s)";
+  const individualPlaceholder =
+    formData.bookingMode === "same_pickup"
+      ? "Manohar Airport T1\nPanaji Bus Stand\nMapusa Circle"
+      : "Dhargal Janata Garage\nColvale Circle\nMapusa Bus Stand";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -457,8 +413,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
             <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
               <User size={18} /> Passenger Details
             </h3>
-
-            {/* ← Crew autocomplete replaces plain name input */}
             <CrewAutocomplete
               value={formData.passengerName}
               onSelect={(name, phone, address, locationLink) => {
@@ -471,7 +425,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
                 }));
               }}
             />
-
             <input
               value={formData.passengerPhone}
               onChange={(e) =>
@@ -595,82 +548,61 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
               <Users size={18} /> Passengers
             </h3>
 
-            {formData.passengers.map((p, i) => (
-              <div
-                key={i}
-                className="border rounded-xl p-4 space-y-3 bg-gray-50"
-              >
-                <div className="flex justify-between items-center">
-                  <span className="font-medium text-gray-700 text-sm">
-                    Passenger {i + 1}
-                  </span>
-                  {formData.passengers.length > 2 && (
-                    <button
-                      type="button"
-                      onClick={() => removePassenger(i)}
-                      className="text-red-500 text-xs"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-600 flex items-center gap-1">
+                <User size={13} /> Names <span className="text-red-400">*</span>
+              </label>
+              <textarea
+                value={bulk.names}
+                onChange={(e) =>
+                  setBulk((b) => ({ ...b, names: e.target.value }))
+                }
+                placeholder={"Seemant\nYogita\nAnkita\nGarv"}
+                rows={4}
+                className="input-style resize-none font-mono text-sm"
+              />
+            </div>
 
-                {/* ← Crew autocomplete for multi-passenger too */}
-                <PassengerAutocomplete
-                  value={p.name}
-                  onSelect={(name, phone, location, locationLink) => {
-                    const arr = [...formData.passengers];
-                    arr[i] = {
-                      ...arr[i],
-                      name,
-                      ...(phone ? { phone } : {}),
-                      ...(location ? { individualLocation: location } : {}),
-                      ...(locationLink ? { locationLink } : {}),
-                    };
-                    set("passengers", arr);
-                  }}
-                />
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-600">
+                📞 Phones
+                <span className="text-xs text-gray-400 font-normal ml-2">
+                  optional
+                </span>
+              </label>
+              <textarea
+                value={bulk.phones}
+                onChange={(e) =>
+                  setBulk((b) => ({ ...b, phones: e.target.value }))
+                }
+                placeholder={"8813881345\n9874563215"}
+                rows={3}
+                className="input-style resize-none font-mono text-sm"
+              />
+            </div>
 
-                <input
-                  value={p.phone}
-                  onChange={(e) =>
-                    updatePassenger(
-                      i,
-                      "phone",
-                      e.target.value.replace(/\D/g, ""),
-                    )
-                  }
-                  placeholder="Phone (10 digits)"
-                  className="input-style"
-                />
-                <LocationInput
-                  value={p.individualLocation}
-                  onChange={(v) => updatePassenger(i, "individualLocation", v)}
-                  placeholder={individualLabel}
-                />
-                <input
-                  value={p.locationLink || ""}
-                  onChange={(e) =>
-                    updatePassenger(i, "locationLink", e.target.value)
-                  }
-                  placeholder="Map link (optional)"
-                  className="input-style"
-                />
-              </div>
-            ))}
-
-            <button
-              type="button"
-              onClick={addPassenger}
-              className="text-sm text-[#075E54] font-medium hover:underline"
-            >
-              + Add Passenger
-            </button>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-600 flex items-center gap-1">
+                <MapPin size={13} /> {individualLabel}
+                <span className="text-xs text-gray-400 font-normal ml-1">
+                  optional
+                </span>
+              </label>
+              <textarea
+                value={bulk.locations}
+                onChange={(e) =>
+                  setBulk((b) => ({ ...b, locations: e.target.value }))
+                }
+                placeholder={individualPlaceholder}
+                rows={4}
+                className="input-style resize-none font-mono text-sm"
+              />
+            </div>
           </section>
         </>
       )}
 
-      {/* ── Driver + Schedule (common) ── */}
+      {/* ── Driver + Schedule ── */}
       <section className="space-y-3">
         <DriverSearchInput
           value={formData.driverName}
@@ -678,8 +610,8 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
             setFormData((prev) => ({
               ...prev,
               driverName: driver.name,
-              driverNumber: driver.phone,
-              vehicleNumber: driver.vehicleNumber || prev.vehicleNumber,
+              driverNumber: driver.phone ?? prev.driverNumber,
+              vehicleNumber: driver.vehicleNumber ?? prev.vehicleNumber,
             }));
           }}
         />
@@ -697,58 +629,42 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
           placeholder="Vehicle Number"
           className="input-style"
         />
+
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-gray-600">
               Pickup Date & Time
             </label>
-
             <div className="flex items-center gap-3 text-xs">
-              {/* Primary Quick Actions */}
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => set("pickupDate", today)}
-                  className="px-3 py-1 rounded-full 
-        bg-gray-100 hover:bg-[#25D366] 
-        hover:text-white transition"
+                  className="px-3 py-1 rounded-full bg-gray-100 hover:bg-[#25D366] hover:text-white transition"
                 >
                   Today
                 </button>
-
                 <button
                   type="button"
                   onClick={() => {
                     set("pickupDate", today);
                     set("pickupTime", currentTime);
                   }}
-                  className="px-3 py-1 rounded-full 
-        bg-gray-100 hover:bg-[#075E54] 
-        hover:text-white transition"
+                  className="px-3 py-1 rounded-full bg-gray-100 hover:bg-[#075E54] hover:text-white transition"
                 >
                   Now
                 </button>
               </div>
-
-              {/* Divider */}
               <div className="h-4 w-px bg-gray-300" />
-
-              {/* Secondary Option */}
               <button
                 type="button"
                 onClick={() => set("pickupDate", tomorrow)}
-                className="px-3 py-1 rounded-full 
-      border border-gray-300 
-      text-gray-600 
-      hover:border-[#25D366] 
-      hover:text-[#25D366] 
-      transition"
+                className="px-3 py-1 rounded-full border border-gray-300 text-gray-600 hover:border-[#25D366] hover:text-[#25D366] transition"
               >
                 Tomorrow
               </button>
             </div>
           </div>
-
           <div className="flex gap-3">
             <input
               type="date"
@@ -756,7 +672,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
               onChange={(e) => set("pickupDate", e.target.value)}
               className="input-style flex-1"
             />
-
             <input
               type="time"
               value={formData.pickupTime}
@@ -766,6 +681,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
             />
           </div>
         </div>
+
         <input
           value={formData.otp}
           onChange={(e) => set("otp", e.target.value.replace(/\D/g, ""))}
@@ -822,6 +738,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
           <Sparkles size={16} /> Generate
         </button>
         <button
+          data-save="draft"
           type="button"
           onClick={handleSaveDraft}
           className="px-4 bg-yellow-100 rounded-lg text-sm font-medium"

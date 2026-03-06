@@ -3,17 +3,10 @@
 export type Passenger = {
   name: string;
   phone: string;
-  /** The location that varies per passenger (pickup OR drop depending on mode) */
   individualLocation: string;
-  /** Optional Google Maps link for the individual location */
   locationLink?: string;
 };
 
-/**
- * "single"      → classic single-passenger booking
- * "same_pickup" → all share one pickup, each has their own drop
- * "same_drop"   → all share one drop, each has their own pickup
- */
 export type BookingMode = "single" | "same_pickup" | "same_drop";
 
 export type MessageType = {
@@ -27,8 +20,8 @@ export type MessageType = {
   locationLink?: string;
 
   // ── Multi-passenger fields ───────────────────────────────────────
-  sharedLocation: string;        // common pickup OR drop address
-  sharedLocationLink?: string;   // map link for the shared stop
+  sharedLocation: string;
+  sharedLocationLink?: string;
   passengers: Passenger[];
 
   // ── Common fields ────────────────────────────────────────────────
@@ -64,36 +57,62 @@ export const generateMessage = (data: MessageType): string => {
       lines.push("");
       lines.push(`${data.locationLink}`);
     }
-  } 
+  }
 
   if (data.bookingMode === "same_pickup") {
-    lines.push(`Pickup: ${data.sharedLocation}`);
-    if (data.sharedLocationLink) lines.push(`${data.sharedLocationLink}`);
+    // Names — always present
+    const names = data.passengers.map((p) => p.name).filter(Boolean);
+    // Phones — only what was actually entered (stored as individual entries)
+    const phones = data.passengers.map((p) => p.phone).filter(Boolean);
+    // Locations — only what was actually entered
+    const locs = data.passengers.map((p) => p.individualLocation).filter(Boolean);
+
+    lines.push(`Passenger Name: ${names.join("\n")}`);
     lines.push("");
-    lines.push(`Passengers (${data.passengers.length}):`);
-    data.passengers.forEach((p, i) => {
+
+    if (phones.length > 0) {
+      lines.push(`Passenger Phone: ${phones.join("\n")}`);
       lines.push("");
-      lines.push(`  ${i + 1}. ${p.name} — 📞 ${p.phone}`);
-      lines.push(`Drop: ${p.individualLocation}`);
-      if (p.locationLink) lines.push(`     ${p.locationLink}`);
-    });
+    }
+
+    lines.push(`Pickup: ${data.sharedLocation}`);
+    if (data.sharedLocationLink) lines.push(data.sharedLocationLink);
+    lines.push("");
+
+    if (locs.length === 1) {
+      lines.push(`Drop: ${locs[0]}`);
+    } else if (locs.length > 1) {
+      lines.push("Drop:");
+      locs.forEach((loc) => lines.push(`   ${loc}`));
+    }
   }
 
   if (data.bookingMode === "same_drop") {
-    lines.push(`Drop: ${data.sharedLocation}`);
-    if (data.sharedLocationLink) lines.push(`${data.sharedLocationLink}`);
+    const names = data.passengers.map((p) => p.name).filter(Boolean);
+    const phones = data.passengers.map((p) => p.phone).filter(Boolean);
+    const locs = data.passengers.map((p) => p.individualLocation).filter(Boolean);
+
+    lines.push(`Passenger Name: ${names.join("\n")}`);
     lines.push("");
-    lines.push(`Passengers (${data.passengers.length}):`);
-    data.passengers.forEach((p, i) => {
+
+    if (phones.length > 0) {
+      lines.push(`Passenger Phone: ${phones.join("\n")}`);
       lines.push("");
-      lines.push(`  ${i + 1}. ${p.name} — 📞 ${p.phone}`);
-      lines.push(`Pickup: ${p.individualLocation}`);
-      if (p.locationLink) lines.push(`${p.locationLink}`);
-    });
+    }
+
+    if (locs.length === 1) {
+      lines.push(`Pickup: ${locs[0]}`);
+    } else if (locs.length > 1) {
+      lines.push("Pickup:");
+      locs.forEach((loc) => lines.push(`   ${loc}`));
+    }
+
+    lines.push("");
+    lines.push(`Drop: ${data.sharedLocation}`);
+    if (data.sharedLocationLink) lines.push(data.sharedLocationLink);
   }
 
   lines.push("");
-  // lines.push("─────────────────────");
   lines.push(`Driver Name: ${data.driverName}`);
   lines.push(`Driver Phone: ${data.driverNumber}`);
   lines.push(`Vehicle Number: ${data.vehicleNumber}`);

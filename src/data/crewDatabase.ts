@@ -85,6 +85,66 @@ const rawCrew = [
   { id: 68, name: "Capt Pradeep Badola", phone: "8125771643", address: "House no 463/4, Abaixa Waddo Mapusa-Calangute road, Parra, Canca, Mapusa, Goa", location: "Mapusa", lat: 15.578150074818057, lng: 73.79699354828287, designation: "Sr Pilot", bookingLeadTime: "" },
   { id: 69, name: "Capt Satish Chandra", phone: "9845322539", address: "Cresent Hotel, Miramar", location: "Miramar", lat: null, lng: null, designation: "Sr Pilot", bookingLeadTime: "" },
   { id: 70, name: "Capt Vikas Tomar", phone: "8851614034", address: "House No. 841/01, First Floor Beside Park Lane Housing Complex Alto, Porvorim Goa 403521", location: "Porvorim", lat: 15.537566108927797, lng: 73.82608261496814, designation: "Sr Pilot", bookingLeadTime: "" },
+ { id: 71, name: "Saurav Bambardekar", phone: "9987286447", address: "Girija Greens, Tivim Colvale Rd, Tivim Goa", location: "TIVIM", lat: 15.627383021833785, lng: 73.85811774727132, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 72, name: "Salman Shaikh", phone: "9664223098", address: "In Nature’s Lap, Karmali, Carambolim, Old Goa", location: "OLD GOA", lat: 15.478797642054902, lng: 73.91239053000238, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 73, name: "Yamini Shakyavanshi", phone: "8149988528", address: "Hira Gardens, Alto Porvorim, Sangolda Goa", location: "PORVORIM", lat: 15.536837034950352, lng: 73.8100043522431, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 74, name: "Deepa Chettri", phone: "9154190908", address: "Nitara Tropical Haven, Marna Siolim, Bardez Goa", location: "SIOLIM", lat: 15.61131967860009, lng: 73.77555100934089, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 75, name: "Komal Manjit Matharu", phone: "8454872159", address: "Pilimbi Vaddo, Siolim Goa", location: "SIOLIM", lat: 15.614982618052638, lng: 73.80876490267293, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 76, name: "Kelly Nongrum", phone: "6290990220", address: "Darius Woods, Socorro, Porvorim Goa", location: "PORVORIM", lat: 15.549011745133107, lng: 73.83994025028437, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 77, name: "Yuvraj Singh", phone: "9318430899", address: "Tamrind Enclave, Khorlim, Mapusa Goa", location: "MAPUSA", lat: 15.592199829179272, lng: 73.80224994003271, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 78, name: "Jennifer Guard", phone: "9920690496", address: "Girija Greens, Thivim Colvale Rd, Bardez Goa", location: "TIVIM", lat: 15.627586661105191, lng: 73.85801427623863, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 79, name: "Monjita Pegu", phone: "8296188287", address: "St Agostine Road, Santa Cruz Goa", location: "SANTA CRUZ", lat: 15.4721825628867, lng: 73.84141870819278, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 80, name: "Sukhmanpreet Kaur Dhillon", phone: "6283349907", address: "Cosme Costa Sunset Boulevard Apartments, Duler Mapusa Goa", location: "MAPUSA", lat: 15.5952190414985, lng: 73.81401422481578, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 81, name: "Jyoti Gupta", phone: "9326917773", address: "Valley Mist Residence, Alto Porvorim, Bardez Goa", location: "PORVORIM", lat: 15.531084355414835, lng: 73.83407305399463, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 82, name: "Pinky Mali", phone: "9920109145", address: "Chonwada Dhargal, Pernem Goa", location: "DHARGAL", lat: 15.667442866841851, lng: 73.83806146426228, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 83, name: "Anand Gill", phone: "9725181178", address: "Amaral Waddo, Taleigao Goa", location: "TALEIGAO", lat: 15.470716557835322, lng: 73.82482457797212, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 84, name: "Ruban George", phone: "9645198627", address: "Shah Classic Building, Merces Tiswadi Goa", location: "MERCES", lat: 15.479920321018277, lng: 73.85230689747951, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 85, name: "Iram Akram", phone: "7976926850", address: "Mangalam Casa Amora Phase 1, Kadamba Plateau Goa", location: "OLD GOA", lat: 15.485088388526874, lng: 73.90501471209777, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 86, name: "Alfiya Mansoor Patel", phone: "9643923105", address: "Pilimbi Vaddo, Siolim Goa", location: "SIOLIM", lat: 15.615468504497485, lng: 73.80886176810554, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 87, name: "Gagan Gaurishankar Patle", phone: "9284779064", address: "Prudential Palms, Chogm Road, Porvorim Goa", location: "PORVORIM", lat: 15.53522155448234, lng: 73.82024230714883, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 88, name: "Naripender Singh", phone: "7575067496", address: "Nitara Tropical Haven, Marna Siolim, Bardez Goa", location: "SIOLIM", lat: 15.61294176431511, lng: 73.77667581839793, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 89, name: "Khorjesty Patcheco", phone: "7710956556", address: "Navelcar Uttam Darshan Colony, Kadamba Plateau, Panaji Goa", location: "PANJIM", lat: 15.495009296497898, lng: 73.8802525848537, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 90, name: "Ankita Hanma Naik", phone: "9158736272", address: "Bhoma Goa", location: "BHOMA", lat: 15.484125749145996, lng: 73.96120926347831, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 91, name: "Justeen Sharookh Randelia", phone: "9833293779", address: "PO Mansion, Caranza Lemi Goa", location: "PANAJI", lat: 15.465955731438664, lng: 73.8066819250533, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 92, name: "Reshma Shankarlal Salesa", phone: "9130555686", address: "Rainbow Building, Ruzzai Waddo Mapusa Goa", location: "MAPUSA", lat: 15.60551762624883, lng: 73.81641685491103, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 93, name: "Shruti Navin Chavan", phone: "9022090855", address: "Gulmohar Nest Housing Society, Mapusa Goa", location: "MAPUSA", lat: 15.592415250495796, lng: 73.8156718000015, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 94, name: "Dicky Pathak", phone: "9101105382", address: "Clinic Road, Mapusa Goa", location: "MAPUSA", lat: 15.5916811155564, lng: 73.81286644330143, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 95, name: "Mohammad Anas Khan", phone: "7985961643", address: "PO Mansion, Caranza Lemi Goa", location: "PANAJI", lat: 15.466015961507148, lng: 73.80670135024087, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 96, name: "Lalrinzuali L", phone: "7680904250", address: "Feira Alto Mapusa Goa", location: "MAPUSA", lat: 15.59205865201304, lng: 73.81288432361946, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 97, name: "Arya Raju Chavan", phone: "8928125224", address: "Gulmohar Nest Housing Society, Mapusa Goa", location: "MAPUSA", lat: 15.5927207844508, lng: 73.81593564916446, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 98, name: "Khushi Singh", phone: "9528516579", address: "Boavista Bastora, Bardez Goa", location: "BASTORA", lat: 15.579897718489793, lng: 73.8269048451339, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 99, name: "Livika Achumi", phone: "7672067268", address: "MFA Majestic Premium Apartments, Karraswada Goa", location: "MAPUSA", lat: 15.604823167300074, lng: 73.82357327116365, designation: "Crew", bookingLeadTime: "" },
+
+  { id: 100, name: "Arpita Ambiger", phone: "6366078819", address: "Nelson Villa, Cunchelim Mapusa Goa", location: "MAPUSA", lat: 15.613687675072994, lng: 73.81354348901603, designation: "Crew", bookingLeadTime: "" }
+
 ];
 
 export const crewDatabase: CrewMember[] = rawCrew.map((c) => ({

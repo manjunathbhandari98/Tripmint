@@ -1,10 +1,31 @@
 import { useState } from "react";
 
 const GOA_LOCATION_SUGGESTIONS = [
-  "Manohar International Airport (GOX) - Goa",
-  "Dabolim International Airport (GOI) - Goa",
-  "Multi Level Car Park",
-  "Panaji Bus Stand",
+  {
+    label: "Manohar International Airport (GOX) - Goa",
+    aliases: ["mopa", "mop", "gox", "manohar airport"],
+  },
+  {
+    label: "Dabolim International Airport (GOI) - Goa",
+    aliases: ["dabolim", "goi", "dabolim airport"],
+  },
+  { label: "Multi Level Car Park", aliases: ["mlcp", "car park"] },
+  {
+    label: "Panaji Bus Stand",
+    aliases: ["panaji bus stand", "kadamba bus stand"],
+  },
+  {
+    label:
+      "FLY91 HQ - 2nd Floor, A Block, Alcon House, Kadamba Plateau Road, Ribandar, Goa 403006",
+    aliases: ["fly91", "fly91 hq"],
+  },
+  { label: "GMR Canteen", aliases: ["gmr"] },
+  { label: "Summit Calangute Resort & Spa", aliases: ["summit calangute"] },
+  {
+    label: "Somy Plaza (formerly Somy Resort)",
+    aliases: ["somy", "somy resort"],
+  },
+  { label: "Casa De Village", aliases: ["casa village"] },
 ];
 
 const LocationInput = ({
@@ -21,9 +42,13 @@ const LocationInput = ({
 
   const filtered =
     value.trim().length >= 2
-      ? GOA_LOCATION_SUGGESTIONS.filter((loc) =>
-          loc.toLowerCase().includes(value.toLowerCase()),
-        )
+      ? GOA_LOCATION_SUGGESTIONS.filter((loc) => {
+          const v = value.toLowerCase();
+          return (
+            loc.label.toLowerCase().includes(v) ||
+            loc.aliases.some((a) => a.includes(v))
+          );
+        })
       : [];
 
   return (
@@ -58,14 +83,14 @@ const LocationInput = ({
 
             // if only ONE suggestion → auto select it
             if (filtered.length === 1) {
-              onChange(filtered[0]);
+              onChange(filtered[0].label);
               setShow(false);
               return;
             }
 
             // If multiple & something highlighted → select highlighted
             if (highlightedIndex >= 0) {
-              onChange(filtered[highlightedIndex]);
+              onChange(filtered[highlightedIndex].label);
               setShow(false);
             }
           }
@@ -82,9 +107,9 @@ const LocationInput = ({
         <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
           {filtered.map((loc, index) => (
             <div
-              key={loc}
+              key={loc.label}
               onClick={() => {
-                onChange(loc);
+                onChange(loc.label);
                 setShow(false);
               }}
               className={`px-4 py-2 text-sm cursor-pointer transition ${
@@ -93,7 +118,7 @@ const LocationInput = ({
                   : "hover:bg-green-50"
               }`}
             >
-              {loc}
+              {loc.label}
             </div>
           ))}
         </div>

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const DRAFT_KEY = "tripmint_drafts";
 
 export const getDrafts = () => {

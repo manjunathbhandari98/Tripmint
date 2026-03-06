@@ -25,21 +25,30 @@ const DriverSearchInput = ({
       <input
         value={value}
         onChange={(e) => {
-          onSelect({ name: e.target.value }); // temporary text
+          onSelect({ name: e.target.value });
           setShow(true);
         }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && filtered.length > 0) {
+            e.preventDefault();
+            onSelect(filtered[0]);
+            setShow(false);
+          }
+        }}
         onFocus={() => setShow(true)}
-        onBlur={() => setTimeout(() => setShow(false), 150)}
+        onBlur={() => setTimeout(() => setShow(false), 200)}
         placeholder="Search driver by name or vehicle"
         className="input-style"
       />
 
       {show && filtered.length > 0 && (
-        <div className="absolute z-30 mt-1 w-full bg-white border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+        <div className="absolute z-50 mt-1 w-full bg-white border rounded-xl shadow-lg max-h-48 overflow-y-auto">
           {filtered.map((driver) => (
             <div
               key={driver.vehicleNumber}
-              onClick={() => {
+              // onMouseDown fires before onBlur, so the click is never lost
+              onMouseDown={(e) => {
+                e.preventDefault(); // prevent input blur
                 onSelect(driver);
                 setShow(false);
               }}

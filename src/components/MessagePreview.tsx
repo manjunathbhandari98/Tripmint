@@ -9,7 +9,7 @@ import {
   Save,
   Send,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 interface MessagePreviewProps {
@@ -60,6 +60,32 @@ const MessagePreview = ({
       toast.error("Failed to copy message.");
     }
   };
+
+  useEffect(() => {
+    const handleCopyShortcut = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+        const selectedText = window.getSelection()?.toString();
+
+        // only run if nothing is selected
+        if (!selectedText) {
+          e.preventDefault();
+
+          if (!finalMessage) {
+            toast.error("No generated message to copy");
+            return;
+          }
+
+          handleCopy();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleCopyShortcut);
+
+    return () => {
+      window.removeEventListener("keydown", handleCopyShortcut);
+    };
+  }, [finalMessage]);
 
   const sendWhatsApp = (phone: string) => {
     if (!finalMessage) return;

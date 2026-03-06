@@ -215,6 +215,42 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     return { today, currentTime, tomorrow };
   }, []);
 
+  useEffect(() => {
+    const handleShortcut = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === ".") {
+        e.preventDefault();
+
+        setFormData((prev) => ({
+          ...prev,
+          pickupDate: today,
+        }));
+
+        toast("Pickup date set to Today");
+      }
+    };
+
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [today]);
+
+  useEffect(() => {
+    const handleShortcut = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+        e.preventDefault();
+
+        setFormData((prev) => ({
+          ...prev,
+          pickupDate: tomorrow,
+        }));
+
+        toast("Pickup date set to Tomorrow");
+      }
+    };
+
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [tomorrow]);
+
   const set = (key: keyof MessageType, value: unknown) =>
     setFormData((prev) => ({ ...prev, [key]: value }));
 
@@ -249,6 +285,23 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     }));
     toast("Pickup & Drop switched 🔄");
   };
+
+  useEffect(() => {
+    const handleShortcut = (e: KeyboardEvent) => {
+      // Swap pickup & drop
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.shiftKey &&
+        e.key.toLowerCase() === "d"
+      ) {
+        e.preventDefault();
+        handleSwap();
+      }
+    };
+
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
 
   // ── Build passengers from bulk — no fill-down ────────────────────
   const buildPassengersFromBulk = (): Passenger[] => {
@@ -358,6 +411,57 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     setBulk(emptyBulk);
     toast("Form cleared.");
   };
+
+  useEffect(() => {
+    const handleShortcut = (e: KeyboardEvent) => {
+      // Swap pickup & drop
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.shiftKey &&
+        e.key.toLowerCase() === "c"
+      ) {
+        e.preventDefault();
+        handleClear();
+      }
+    };
+
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
+
+  useEffect(() => {
+    const handleShortcut = (e: KeyboardEvent) => {
+      // ALT + P → Passenger phone
+      if (e.altKey && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+
+        if (formData.passengerPhone) {
+          navigator.clipboard.writeText(formData.passengerPhone);
+          toast.success("Passenger number copied ");
+        } else {
+          toast.error("No passenger number");
+        }
+      }
+
+      // ALT + D → Driver phone
+      if (e.altKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+
+        if (formData.driverNumber) {
+          navigator.clipboard.writeText(formData.driverNumber);
+          toast.success("Driver number copied");
+        } else {
+          toast.error("No driver number");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleShortcut);
+
+    return () => {
+      window.removeEventListener("keydown", handleShortcut);
+    };
+  }, [formData.passengerPhone, formData.driverNumber]);
 
   const sharedLabel =
     formData.bookingMode === "same_pickup"

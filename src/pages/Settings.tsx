@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import Footer from "../layout/Footer";
 import {
   addCrew,
   deleteCrew,
@@ -40,6 +41,7 @@ import {
   updateDriver,
   type Driver,
 } from "../services/drivers";
+import { useAdminPin } from "./UseAdminPin";
 
 /* ─────────────────────────────────────────
    Types
@@ -476,6 +478,7 @@ const CrewView = ({ onBack }: { onBack: () => void }) => {
     name: "",
     onConfirm: () => {},
   });
+  const { guardedDelete, PinGate } = useAdminPin();
 
   useEffect(() => {
     fetchCrew().then((d) => {
@@ -529,19 +532,22 @@ const CrewView = ({ onBack }: { onBack: () => void }) => {
   };
 
   const askDel = (c: Crew) =>
-    setConf({
-      open: true,
-      name: c.name,
-      onConfirm: async () => {
-        if (!c.id) return;
-        await deleteCrew(c.id);
-        setList((p) => p.filter((x) => x.id !== c.id));
-        setConf((s) => ({ ...s, open: false }));
-      },
-    });
+    guardedDelete(() =>
+      setConf({
+        open: true,
+        name: c.name,
+        onConfirm: async () => {
+          if (!c.id) return;
+          await deleteCrew(c.id);
+          setList((p) => p.filter((x) => x.id !== c.id));
+          setConf((s) => ({ ...s, open: false }));
+        },
+      }),
+    );
 
   return (
     <div className="flex flex-col h-full bg-[#efeae2]">
+      {PinGate}
       {/* Header */}
       <div className="bg-[#008069] text-white shrink-0">
         <div className="flex items-center gap-3 px-4 pt-12 pb-4">
@@ -734,6 +740,7 @@ const DriversView = ({ onBack }: { onBack: () => void }) => {
     name: "",
     onConfirm: () => {},
   });
+  const { guardedDelete, PinGate } = useAdminPin();
 
   useEffect(() => {
     fetchDrivers().then((d) => {
@@ -782,19 +789,22 @@ const DriversView = ({ onBack }: { onBack: () => void }) => {
   };
 
   const askDel = (d: Driver) =>
-    setConf({
-      open: true,
-      name: d.name,
-      onConfirm: async () => {
-        if (!d.id) return;
-        await deleteDriver(d.id);
-        setList((p) => p.filter((x) => x.id !== d.id));
-        setConf((s) => ({ ...s, open: false }));
-      },
-    });
+    guardedDelete(() =>
+      setConf({
+        open: true,
+        name: d.name,
+        onConfirm: async () => {
+          if (!d.id) return;
+          await deleteDriver(d.id);
+          setList((p) => p.filter((x) => x.id !== d.id));
+          setConf((s) => ({ ...s, open: false }));
+        },
+      }),
+    );
 
   return (
     <div className="flex flex-col h-full bg-[#efeae2]">
+      {PinGate}
       <div className="bg-[#008069] text-white shrink-0">
         <div className="flex items-center gap-3 px-4 pt-12 pb-4">
           <button
@@ -939,6 +949,7 @@ const DriversView = ({ onBack }: { onBack: () => void }) => {
 /* ─────────────────────────────────────────
    Main Settings Page
 ───────────────────────────────────────── */
+// 1. Update the prop type
 const SettingsPage = ({
   onClose,
   onLogout,
@@ -1137,12 +1148,7 @@ const SettingsPage = ({
           </Card>
         </div>
 
-        <p
-          className="text-center text-[11px] text-gray-400 py-4"
-          style={{ animation: "fadeSlide .35s 380ms both" }}
-        >
-          Transport Booking · Made with ❤️ in Goa
-        </p>
+        <Footer />
       </div>
 
       <style>{`

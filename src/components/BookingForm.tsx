@@ -6,14 +6,14 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import crewDatabase from "../data/crewDatabase";
 import type { BookingMode, MessageType, Passenger } from "../messageTemplate";
+import { addDriver } from "../services/drivers";
+import Crewautocomplete from "./Crewautocomplete";
 import DriverSearchInput from "./ui/DriverSearchInput";
 import LocationInput from "./ui/LocationInput";
 
-// ── DraftType now includes bulk so multi-passenger drafts round-trip correctly ──
 export type DraftType = MessageType & {
   id: string;
   savedAt: string;
@@ -24,6 +24,12 @@ interface Props {
   onGenerate: (data: MessageType) => void;
   onSaveDraft: (draft: DraftType) => void;
   initialDraft?: DraftType | null;
+}
+
+interface BulkInput {
+  names: string;
+  phones: string;
+  locations: string;
 }
 
 const emptyPassenger = (): Passenger => ({
@@ -52,12 +58,6 @@ const emptyForm: MessageType = {
   additionalNotes: "",
 };
 
-interface BulkInput {
-  names: string;
-  phones: string;
-  locations: string;
-}
-
 const emptyBulk: BulkInput = { names: "", phones: "", locations: "" };
 
 const phoneRegex = /^[0-9]{10}$/;
@@ -66,11 +66,9 @@ const otpRegex = /^[0-9]{4,6}$/;
 const parseLines = (raw: string): string[] =>
   raw
     .split("\n")
-    .map((line) => line.split("\t")[0].trim())
+    .map((l) => l.split("\t")[0].trim())
     .filter(Boolean);
 
-// Reconstruct bulk text from a saved passengers array (for loading old drafts
-// that were saved before bulk was introduced)
 const passengersToBulk = (passengers: Passenger[]): BulkInput => ({
   names: passengers
     .map((p) => p.name)
@@ -86,110 +84,13 @@ const passengersToBulk = (passengers: Passenger[]): BulkInput => ({
     .join("\n"),
 });
 
-// ── Crew Autocomplete ───────────────────────────────────────────────
-interface CrewAutocompleteProps {
-  value: string;
-  onSelect: (
-    name: string,
-    phone: string,
-    address: string,
-    locationLink: string,
-  ) => void;
-  placeholder?: string;
-}
-
-const CrewAutocomplete = ({
-  value,
-  onSelect,
-  placeholder = "Passenger Name",
-}: CrewAutocompleteProps) => {
-  const [query, setQuery] = useState(value);
-  const [suggestions, setSuggestions] = useState<typeof crewDatabase>([]);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setQuery(value);
-  }, [value]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const q = e.target.value;
-    setQuery(q);
-    if (q.length >= 2) {
-      const lower = q.toLowerCase();
-      const matches = crewDatabase.filter(
-        (c) =>
-          c.name.toLowerCase().includes(lower) ||
-          c.phone.includes(q) ||
-          c.designation.toLowerCase().includes(lower),
-      );
-      setSuggestions(matches.slice(0, 8));
-      setOpen(matches.length > 0);
-    } else {
-      setSuggestions([]);
-      setOpen(false);
-    }
-    onSelect(q, "", "", "");
-  };
-
-  const handlePick = (crew: (typeof crewDatabase)[0]) => {
-    setQuery(crew.name);
-    setOpen(false);
-    onSelect(crew.name, crew.phone, crew.address, crew.locationLink);
-  };
-
-  return (
-    <div ref={ref} className="relative">
-      <input
-        value={query}
-        onChange={handleChange}
-        onFocus={() =>
-          query.length >= 2 && suggestions.length > 0 && setOpen(true)
-        }
-        placeholder={placeholder}
-        className="input-style"
-      />
-      {open && (
-        <ul className="absolute z-50 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg mt-1 max-h-60 overflow-y-auto">
-          {suggestions.map((crew) => (
-            <li
-              key={crew.id}
-              onMouseDown={() => handlePick(crew)}
-              className="px-4 py-2.5 hover:bg-[#e8faf0] cursor-pointer border-b last:border-0"
-            >
-              <p className="font-medium text-sm text-gray-800">{crew.name}</p>
-              <p className="text-xs text-gray-500">
-                {crew.designation} · {crew.location} · {crew.phone}
-              </p>
-              {crew.bookingLeadTime && (
-                <p className="text-xs text-[#075E54] font-medium mt-0.5">
-                  ⏱ Book {crew.bookingLeadTime} prior
-                </p>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-};
-
-// ── Main BookingForm ────────────────────────────────────────────────
+// ── BookingForm ─────────────────────────────────────────────────────
 const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
   const [formData, setFormData] = useState<MessageType>(
-    initialDraft || emptyForm,
+    initialDraft ?? emptyForm,
   );
+  const [driverRefreshKey, setDriverRefreshKey] = useState(0);
 
-  // Restore bulk from draft — prefer saved bulk, fall back to reconstructing from passengers array
   const [bulk, setBulk] = useState<BulkInput>(() => {
     if (!initialDraft) return emptyBulk;
     if (initialDraft.bulk) return initialDraft.bulk;
@@ -211,45 +112,8 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     const currentTime = now.toTimeString().slice(0, 5);
     const tmr = new Date(now);
     tmr.setDate(now.getDate() + 1);
-    const tomorrow = tmr.toISOString().split("T")[0];
-    return { today, currentTime, tomorrow };
+    return { today, currentTime, tomorrow: tmr.toISOString().split("T")[0] };
   }, []);
-
-  useEffect(() => {
-    const handleShortcut = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === ".") {
-        e.preventDefault();
-
-        setFormData((prev) => ({
-          ...prev,
-          pickupDate: today,
-        }));
-
-        toast("Pickup date set to Today");
-      }
-    };
-
-    window.addEventListener("keydown", handleShortcut);
-    return () => window.removeEventListener("keydown", handleShortcut);
-  }, [today]);
-
-  useEffect(() => {
-    const handleShortcut = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "/") {
-        e.preventDefault();
-
-        setFormData((prev) => ({
-          ...prev,
-          pickupDate: tomorrow,
-        }));
-
-        toast("Pickup date set to Tomorrow");
-      }
-    };
-
-    window.addEventListener("keydown", handleShortcut);
-    return () => window.removeEventListener("keydown", handleShortcut);
-  }, [tomorrow]);
 
   const set = (key: keyof MessageType, value: unknown) =>
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -259,7 +123,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     setBulk(emptyBulk);
   };
 
-  // ── Single mode helpers ──────────────────────────────────────────
+  // ── Location helpers ──
   const updateLoc = (
     type: "pickupLocations" | "dropLocations",
     i: number,
@@ -286,24 +150,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     toast("Pickup & Drop switched 🔄");
   };
 
-  useEffect(() => {
-    const handleShortcut = (e: KeyboardEvent) => {
-      // Swap pickup & drop
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        e.shiftKey &&
-        e.key.toLowerCase() === "d"
-      ) {
-        e.preventDefault();
-        handleSwap();
-      }
-    };
-
-    window.addEventListener("keydown", handleShortcut);
-    return () => window.removeEventListener("keydown", handleShortcut);
-  }, []);
-
-  // ── Build passengers from bulk — no fill-down ────────────────────
   const buildPassengersFromBulk = (): Passenger[] => {
     const names = parseLines(bulk.names);
     const phones = parseLines(bulk.phones);
@@ -316,16 +162,60 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     }));
   };
 
-  // ── Validation ───────────────────────────────────────────────────
+  // ── Keyboard shortcuts ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (ctrl && e.key === ".") {
+        e.preventDefault();
+        set("pickupDate", today);
+        toast("Date → Today");
+      }
+      if (ctrl && e.key === "/") {
+        e.preventDefault();
+        set("pickupDate", tomorrow);
+        toast("Date → Tomorrow");
+      }
+      if (ctrl && e.shiftKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        handleSwap();
+      }
+      if (ctrl && e.shiftKey && e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        handleClear();
+      }
+      if (e.altKey && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        if (formData.passengerPhone) {
+          navigator.clipboard.writeText(formData.passengerPhone);
+          toast.success("Passenger number copied");
+        } else {
+          toast.error("No passenger number");
+        }
+      }
+      if (e.altKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        if (formData.driverNumber) {
+          navigator.clipboard.writeText(formData.driverNumber);
+          toast.success("Driver number copied");
+        } else {
+          toast.error("No driver number");
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [today, tomorrow, formData.passengerPhone, formData.driverNumber]);
+
+  // ── Validation ──
   const validate = (): boolean => {
     if (formData.bookingMode === "single") {
-      const cleanPickup = formData.pickupLocations.filter(Boolean);
-      const cleanDrop = formData.dropLocations.filter(Boolean);
       if (
         !formData.passengerName ||
         !formData.passengerPhone ||
-        cleanPickup.length === 0 ||
-        cleanDrop.length === 0
+        formData.pickupLocations.filter(Boolean).length === 0 ||
+        formData.dropLocations.filter(Boolean).length === 0
       ) {
         toast.error("Fill in passenger name, phone, and both locations.");
         return false;
@@ -339,8 +229,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         toast.error("Enter the shared location.");
         return false;
       }
-      const names = parseLines(bulk.names);
-      if (names.length === 0) {
+      if (parseLines(bulk.names).length === 0) {
         toast.error("Add at least one passenger name.");
         return false;
       }
@@ -367,19 +256,32 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     return true;
   };
 
-  // ── Submit ───────────────────────────────────────────────────────
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
-    const passengers =
-      formData.bookingMode !== "single"
-        ? buildPassengersFromBulk()
-        : formData.passengers;
+    // Auto-save driver as non-prime whenever a message is generated
+    if (formData.driverName.trim()) {
+      try {
+        await addDriver({
+          name: formData.driverName.trim(),
+          phone: formData.driverNumber ?? "",
+          vehicleNumber: formData.vehicleNumber ?? "",
+          isPrimary: false,
+        });
+      } catch (err) {
+        console.warn("Driver auto-save failed:", err);
+        // never block message generation
+      }
+    }
+    setDriverRefreshKey((k) => k + 1); // refresh dropdown list
 
     onGenerate({
       ...formData,
-      passengers,
+      passengers:
+        formData.bookingMode !== "single"
+          ? buildPassengersFromBulk()
+          : formData.passengers,
       pickupLocations: formData.pickupLocations.filter(Boolean),
       dropLocations: formData.dropLocations.filter(Boolean),
       pickupDate: includeDateTime ? formData.pickupDate : "N/A",
@@ -389,11 +291,9 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     toast.success("Message generated.");
   };
 
-  // ── Save Draft — include bulk so it round-trips ──────────────────
   const handleSaveDraft = () => {
     const draft: DraftType = {
       ...formData,
-      // For multi-passenger, persist the built passengers too (for display in draft list)
       passengers:
         formData.bookingMode !== "single"
           ? buildPassengersFromBulk()
@@ -412,57 +312,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     toast("Form cleared.");
   };
 
-  useEffect(() => {
-    const handleShortcut = (e: KeyboardEvent) => {
-      // Swap pickup & drop
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        e.shiftKey &&
-        e.key.toLowerCase() === "c"
-      ) {
-        e.preventDefault();
-        handleClear();
-      }
-    };
-
-    window.addEventListener("keydown", handleShortcut);
-    return () => window.removeEventListener("keydown", handleShortcut);
-  }, []);
-
-  useEffect(() => {
-    const handleShortcut = (e: KeyboardEvent) => {
-      // ALT + P → Passenger phone
-      if (e.altKey && e.key.toLowerCase() === "p") {
-        e.preventDefault();
-
-        if (formData.passengerPhone) {
-          navigator.clipboard.writeText(formData.passengerPhone);
-          toast.success("Passenger number copied ");
-        } else {
-          toast.error("No passenger number");
-        }
-      }
-
-      // ALT + D → Driver phone
-      if (e.altKey && e.key.toLowerCase() === "d") {
-        e.preventDefault();
-
-        if (formData.driverNumber) {
-          navigator.clipboard.writeText(formData.driverNumber);
-          toast.success("Driver number copied");
-        } else {
-          toast.error("No driver number");
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleShortcut);
-
-    return () => {
-      window.removeEventListener("keydown", handleShortcut);
-    };
-  }, [formData.passengerPhone, formData.driverNumber]);
-
   const sharedLabel =
     formData.bookingMode === "same_pickup"
       ? "Common Pickup Location"
@@ -478,7 +327,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* ── Booking Mode Tabs ── */}
+      {/* ── Booking Mode ── */}
       <section className="space-y-2">
         <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
           <Users size={18} /> Booking Type
@@ -510,24 +359,24 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         </div>
       </section>
 
-      {/* ── SINGLE PASSENGER MODE ── */}
+      {/* ── Single Passenger ── */}
       {formData.bookingMode === "single" && (
         <>
           <section className="space-y-3">
             <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
               <User size={18} /> Passenger Details
             </h3>
-            <CrewAutocomplete
+            <Crewautocomplete
               value={formData.passengerName}
-              onSelect={(name, phone, address, locationLink) => {
+              onSelect={(name, phone, address, locationLink) =>
                 setFormData((prev) => ({
                   ...prev,
                   passengerName: name,
                   ...(phone ? { passengerPhone: phone } : {}),
                   ...(address ? { pickupLocations: [address] } : {}),
                   ...(locationLink ? { locationLink } : {}),
-                }));
-              }}
+                }))
+              }
             />
             <input
               value={formData.passengerPhone}
@@ -626,7 +475,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         </>
       )}
 
-      {/* ── MULTI-PASSENGER MODE ── */}
+      {/* ── Multi-Passenger ── */}
       {(formData.bookingMode === "same_pickup" ||
         formData.bookingMode === "same_drop") && (
         <>
@@ -651,7 +500,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
             <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
               <Users size={18} /> Passengers
             </h3>
-
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-600 flex items-center gap-1">
                 <User size={13} /> Names <span className="text-red-400">*</span>
@@ -666,10 +514,9 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
                 className="input-style resize-none font-mono text-sm"
               />
             </div>
-
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-600">
-                📞 Phones
+                📞 Phones{" "}
                 <span className="text-xs text-gray-400 font-normal ml-2">
                   optional
                 </span>
@@ -684,7 +531,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
                 className="input-style resize-none font-mono text-sm"
               />
             </div>
-
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-600 flex items-center gap-1">
                 <MapPin size={13} /> {individualLabel}
@@ -710,14 +556,20 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
       <section className="space-y-3">
         <DriverSearchInput
           value={formData.driverName}
-          onSelect={(driver) => {
+          refreshKey={driverRefreshKey}
+          onSelect={(driver, nameOnly) =>
             setFormData((prev) => ({
               ...prev,
               driverName: driver.name,
-              driverNumber: driver.phone ?? prev.driverNumber,
-              vehicleNumber: driver.vehicleNumber ?? prev.vehicleNumber,
-            }));
-          }}
+              // Only overwrite phone/vehicle when a suggestion was picked, not on every keystroke
+              ...(nameOnly
+                ? {}
+                : {
+                    driverNumber: driver.phone || prev.driverNumber,
+                    vehicleNumber: driver.vehicleNumber || prev.vehicleNumber,
+                  }),
+            }))
+          }
         />
         <input
           value={formData.driverNumber}
@@ -823,7 +675,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
             <button
               type="button"
               onClick={toggle}
-              className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${state ? "bg-[#25D366]" : "bg-gray-300"}`}
+              className={`relative w-12 h-6 rounded-full ml-4 transition-colors duration-300 ${state ? "bg-[#25D366]" : "bg-gray-300"}`}
             >
               <span
                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${state ? "translate-x-6" : ""}`}
@@ -837,22 +689,22 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
       <div className="flex gap-3 pt-4">
         <button
           type="submit"
-          className="flex-1 bg-[#168c41] hover:bg-[#07c251] text-white py-2.5 rounded-lg flex items-center justify-center gap-2"
+          className="flex-1 bg-[#168c41] hover:bg-[#07c251] text-white py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors"
         >
           <Sparkles size={16} /> Generate
         </button>
         <button
-          data-save="draft"
           type="button"
           onClick={handleSaveDraft}
-          className="px-4 bg-yellow-100 rounded-lg text-sm font-medium"
+          className="px-4 bg-yellow-100 hover:bg-yellow-200 rounded-lg text-sm font-medium transition-colors"
         >
           Save Draft
         </button>
         <button
           type="button"
           onClick={handleClear}
-          className="px-4 bg-gray-100 rounded-lg"
+          className="px-4 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          aria-label="Clear form"
         >
           <RotateCcw size={16} />
         </button>

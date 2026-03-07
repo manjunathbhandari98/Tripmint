@@ -1,15 +1,14 @@
 import { Shield, X } from "lucide-react";
 import { useRef, useState } from "react";
 
-// Set your admin PIN in .env as VITE_ADMIN_PIN=1234
-const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN ?? "1234";
+// Set your admin PIN in .env as VITE_ADMIN_PIN=123456
+const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN ?? "123456";
 
 interface PinModalProps {
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 const PinModal = ({ onSuccess, onCancel }: PinModalProps) => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
@@ -90,20 +89,6 @@ const PinModal = ({ onSuccess, onCancel }: PinModalProps) => {
             const val = e.target.value.replace(/\D/g, "");
             setPin(val);
             setError(false);
-            // auto-submit when PIN length reached
-            if (val.length === ADMIN_PIN.length) {
-              if (val === ADMIN_PIN) {
-                onSuccess();
-              } else {
-                setError(true);
-                setShake(true);
-                setTimeout(() => {
-                  setShake(false);
-                  setPin("");
-                  inputRef.current?.focus();
-                }, 500);
-              }
-            }
           }}
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
           className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-transparent text-center text-lg font-mono tracking-[0.5em] focus:outline-none focus:border-[#00a884] focus:ring-2 focus:ring-[#00a884]/15 transition-all"

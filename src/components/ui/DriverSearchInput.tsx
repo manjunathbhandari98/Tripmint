@@ -1,21 +1,32 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchDrivers, type Driver } from "../../services/drivers";
 
 const DriverSearchInput = ({
   value,
   onSelect,
   refreshKey = 0,
+  onCommit,
 }: {
   value: string;
   onSelect: (driver: Driver, nameOnly?: boolean) => void;
   refreshKey?: number;
+  onCommit?: () => void;
 }) => {
   const [show, setShow] = useState(false);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     fetchDrivers().then(setDrivers);
-  }, [refreshKey]); // re-fetch whenever BookingForm increments refreshKey
+  }, [refreshKey]);
+
+  // scroll active item into view
+  useEffect(() => {
+    if (activeIdx < 0 || !listRef.current) return;
+    const item = listRef.current.children[activeIdx] as HTMLElement | undefined;
+    item?.scrollIntoView({ block: "nearest" });
+  }, [activeIdx]);
 
   const filtered =
     value.length >= 2
@@ -26,14 +37,46 @@ const DriverSearchInput = ({
         )
       : [];
 
-  // When the user leaves the field with a typed name that isn't in the list,
-  const handleBlur = () => {
-    setTimeout(() => setShow(false), 200);
+  const pick = (driver: Driver) => {
+    onSelect(driver);
+    setShow(false);
+    setActiveIdx(-1);
+    setTimeout(() => onCommit?.(), 30);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (show && filtered.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveIdx((i) => Math.min(i + 1, filtered.length - 1));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveIdx((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const target = activeIdx >= 0 ? filtered[activeIdx] : filtered[0];
+        pick(target);
+        return;
+      }
+      if (e.key === "Escape") {
+        setShow(false);
+        setActiveIdx(-1);
+        return;
+      }
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      onCommit?.();
+    }
   };
 
   return (
     <div className="relative">
       <input
+        id="driverName"
         value={value}
         onChange={(e) => {
           onSelect(
@@ -41,38 +84,37 @@ const DriverSearchInput = ({
             true,
           );
           setShow(true);
+          setActiveIdx(-1);
         }}
-        onFocus={() => setShow(true)}
-        onBlur={handleBlur}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && filtered.length > 0) {
-            e.preventDefault();
-            onSelect(filtered[0]);
-            setShow(false);
-          }
-        }}
+        onFocus={() => filtered.length > 0 && setShow(true)}
+        onBlur={() => setTimeout(() => setShow(false), 200)}
+        onKeyDown={handleKeyDown}
         placeholder="Search driver by name or vehicle"
+        autoComplete="off"
         className="input-style"
       />
 
       {show && filtered.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
-          {filtered.map((driver) => (
-            <div
+        <ul
+          ref={listRef}
+          className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-52 overflow-y-auto"
+        >
+          {filtered.map((driver, i) => (
+            <li
               key={driver.id}
               onMouseDown={(e) => {
                 e.preventDefault();
-                onSelect(driver);
-                setShow(false);
+                pick(driver);
               }}
-              className="flex items-center gap-3 px-4 py-2.5 hover:bg-green-50 cursor-pointer border-b last:border-0"
+              onMouseEnter={() => setActiveIdx(i)}
+              className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer border-b last:border-0 transition-colors ${
+                i === activeIdx ? "bg-[#e8faf0]" : "hover:bg-[#f4fdf8]"
+              }`}
             >
-              {/* Prime indicator */}
               <span
                 title={driver.isPrimary ? "Prime driver" : "Non-prime driver"}
                 className={`shrink-0 w-2 h-2 rounded-full ${driver.isPrimary ? "bg-[#00a884]" : "bg-gray-300"}`}
               />
-
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm text-gray-900 truncate">
@@ -83,6 +125,11 @@ const DriverSearchInput = ({
                       ★ Prime
                     </span>
                   )}
+                  {i === activeIdx && (
+                    <span className="ml-auto shrink-0 text-[10px] text-[#00a884] font-mono bg-[#e8faf4] px-1.5 py-0.5 rounded">
+                      ↵ select
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs text-gray-500 truncate">
                   {[driver.vehicleNumber, driver.vehicleType, driver.phone]
@@ -90,9 +137,14 @@ const DriverSearchInput = ({
                     .join(" · ")}
                 </div>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+          <li className="px-4 py-1.5 text-[10px] text-gray-400 flex items-center gap-3 bg-gray-50 rounded-b-xl border-t">
+            <span>↑↓ navigate</span>
+            <span>↵ select</span>
+            <span>Esc close</span>
+          </li>
+        </ul>
       )}
     </div>
   );

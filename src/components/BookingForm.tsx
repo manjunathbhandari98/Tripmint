@@ -6,7 +6,7 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import type { BookingMode, MessageType, Passenger } from "../messageTemplate";
 import { addDriver } from "../services/drivers";
@@ -59,11 +59,10 @@ const emptyForm: MessageType = {
 };
 
 const emptyBulk: BulkInput = { names: "", phones: "", locations: "" };
-
 const phoneRegex = /^[0-9]{10}$/;
 const otpRegex = /^[0-9]{4,6}$/;
 
-const parseLines = (raw: string): string[] =>
+const parseLines = (raw: string) =>
   raw
     .split("\n")
     .map((l) => l.split("\t")[0].trim())
@@ -84,46 +83,86 @@ const passengersToBulk = (passengers: Passenger[]): BulkInput => ({
     .join("\n"),
 });
 
-// ── BookingForm ─────────────────────────────────────────────────────
+// ─── ordered field IDs used for Enter-to-advance ────────────────────
+const FIELD_IDS = [
+  "passengerName",
+  "passengerPhone",
+  "pickup-0",
+  "pickup-1",
+  "drop-0",
+  "drop-1",
+  "locationLink",
+  "driverName",
+  "driverNumber",
+  "vehicleNumber",
+  "pickupDate",
+  "pickupTime",
+  "otp",
+  "additionalNotes",
+];
+
+const focusField = (id: string) => {
+  document.getElementById(id)?.focus();
+};
+
+const focusAfter = (currentId: string) => {
+  const idx = FIELD_IDS.indexOf(currentId);
+  if (idx === -1) return;
+  for (let i = idx + 1; i < FIELD_IDS.length; i++) {
+    const el = document.getElementById(FIELD_IDS[i]);
+    if (el) {
+      el.focus();
+      return;
+    }
+  }
+};
+
+// ─── Component ─────────────────────────────────────────────────────
 const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
   const [formData, setFormData] = useState<MessageType>(
     initialDraft ?? emptyForm,
   );
   const [driverRefreshKey, setDriverRefreshKey] = useState(0);
-
   const [bulk, setBulk] = useState<BulkInput>(() => {
     if (!initialDraft) return emptyBulk;
     if (initialDraft.bulk) return initialDraft.bulk;
     if (
       initialDraft.bookingMode !== "single" &&
       initialDraft.passengers?.length
-    ) {
+    )
       return passengersToBulk(initialDraft.passengers);
-    }
     return emptyBulk;
   });
-
   const [includeOTP, setIncludeOTP] = useState(true);
   const [includeDateTime, setIncludeDateTime] = useState(true);
 
-  const { today, currentTime, tomorrow } = useMemo(() => {
+  // refs for programmatic focus
+  const timeRef = useRef<HTMLInputElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
+  const otpRef = useRef<HTMLInputElement>(null);
+
+  const { today, tomorrow, currentTime } = useMemo(() => {
     const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
     const today = now.toISOString().split("T")[0];
-    const currentTime = now.toTimeString().slice(0, 5);
+    const currentTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
     const tmr = new Date(now);
     tmr.setDate(now.getDate() + 1);
-    return { today, currentTime, tomorrow: tmr.toISOString().split("T")[0] };
+    return { today, tomorrow: tmr.toISOString().split("T")[0], currentTime };
   }, []);
 
-  const set = (key: keyof MessageType, value: unknown) =>
-    setFormData((prev) => ({ ...prev, [key]: value }));
+  const set = useCallback(
+    (key: keyof MessageType, value: unknown) =>
+      setFormData((prev) => ({ ...prev, [key]: value })),
+    [],
+  );
 
   const setMode = (mode: BookingMode) => {
     set("bookingMode", mode);
     setBulk(emptyBulk);
   };
 
-  // ── Location helpers ──
+  // ── helpers ────────────────────────────────────────────────────────
   const updateLoc = (
     type: "pickupLocations" | "dropLocations",
     i: number,
@@ -133,22 +172,46 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     arr[i] = v;
     set(type, arr);
   };
-  const addLoc = (type: "pickupLocations" | "dropLocations") =>
-    set(type, [...formData[type], ""]);
   const removeLoc = (type: "pickupLocations" | "dropLocations", i: number) =>
     set(
       type,
       formData[type].filter((_, idx) => idx !== i),
     );
 
-  const handleSwap = () => {
+  const handleSwap = useCallback(() => {
     setFormData((prev) => ({
       ...prev,
       pickupLocations: [...prev.dropLocations],
       dropLocations: [...prev.pickupLocations],
     }));
-    toast("Pickup & Drop switched 🔄");
-  };
+    toast.success("Pickup & Drop switched");
+  }, []);
+
+  const handleClear = useCallback(() => {
+    setFormData(emptyForm);
+    setBulk(emptyBulk);
+    toast.success("Form cleared");
+    setTimeout(() => focusField("passengerName"), 50);
+  }, []);
+
+  const setToday = useCallback(() => {
+    set("pickupDate", today);
+    toast.success("Today");
+    setTimeout(() => timeRef.current?.focus(), 50);
+  }, [today, set]);
+
+  const setTomorrow = useCallback(() => {
+    set("pickupDate", tomorrow);
+    toast.success("Tomorrow");
+    setTimeout(() => timeRef.current?.focus(), 50);
+  }, [tomorrow, set]);
+
+  const setNow = useCallback(() => {
+    set("pickupDate", today);
+    set("pickupTime", currentTime);
+    toast.success("Now");
+    setTimeout(() => otpRef.current?.focus(), 50);
+  }, [today, currentTime, set]);
 
   const buildPassengersFromBulk = (): Passenger[] => {
     const names = parseLines(bulk.names);
@@ -162,53 +225,71 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     }));
   };
 
-  // ── Keyboard shortcuts ──
+  // ── Enter-to-advance for plain inputs ─────────────────────────────
+  const enterNext = (id: string) => (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      focusAfter(id);
+    }
+  };
+
+  // ── Global keyboard shortcuts ──────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
+      const focused = document.activeElement?.tagName;
+      const typing = focused === "INPUT" || focused === "TEXTAREA";
+
+      // Ctrl+. → Today + auto-focus time
       if (ctrl && e.key === ".") {
         e.preventDefault();
-        set("pickupDate", today);
-        toast("Date → Today");
+        setToday();
+        return;
       }
+      // Ctrl+/ → Tomorrow + auto-focus time
       if (ctrl && e.key === "/") {
         e.preventDefault();
-        set("pickupDate", tomorrow);
-        toast("Date → Tomorrow");
+        setTomorrow();
+        return;
       }
+      // Ctrl+Shift+D → Swap pickup & drop
       if (ctrl && e.shiftKey && e.key.toLowerCase() === "d") {
         e.preventDefault();
         handleSwap();
+        return;
       }
-      if (ctrl && e.shiftKey && e.key.toLowerCase() === "c") {
+      // Ctrl+Shift+C → Clear form (only when not typing)
+      if (ctrl && e.shiftKey && e.key.toLowerCase() === "c" && !typing) {
         e.preventDefault();
         handleClear();
+        return;
       }
+      // Alt+P → copy passenger phone
       if (e.altKey && e.key.toLowerCase() === "p") {
         e.preventDefault();
         if (formData.passengerPhone) {
           navigator.clipboard.writeText(formData.passengerPhone);
           toast.success("Passenger number copied");
-        } else {
-          toast.error("No passenger number");
-        }
+        } else toast.error("No passenger number");
+        return;
       }
+      // Alt+D → copy driver phone
       if (e.altKey && e.key.toLowerCase() === "d") {
         e.preventDefault();
         if (formData.driverNumber) {
           navigator.clipboard.writeText(formData.driverNumber);
           toast.success("Driver number copied");
-        } else {
-          toast.error("No driver number");
-        }
+        } else toast.error("No driver number");
+        return;
       }
     };
+
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today, tomorrow, formData.passengerPhone, formData.driverNumber]);
 
-  // ── Validation ──
+  // ── Validation ─────────────────────────────────────────────────────
   const validate = (): boolean => {
     if (formData.bookingMode === "single") {
       if (
@@ -217,11 +298,13 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         formData.pickupLocations.filter(Boolean).length === 0 ||
         formData.dropLocations.filter(Boolean).length === 0
       ) {
-        toast.error("Fill in passenger name, phone, and both locations.");
+        toast.error("Fill passenger name, phone, and both locations.");
+        focusField("passengerName");
         return false;
       }
       if (!phoneRegex.test(formData.passengerPhone)) {
         toast.error("Passenger phone must be 10 digits.");
+        focusField("passengerPhone");
         return false;
       }
     } else {
@@ -233,9 +316,8 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         toast.error("Add at least one passenger name.");
         return false;
       }
-      const phones = parseLines(bulk.phones);
-      for (let i = 0; i < phones.length; i++) {
-        if (!phoneRegex.test(phones[i])) {
+      for (const [i, ph] of parseLines(bulk.phones).entries()) {
+        if (!phoneRegex.test(ph)) {
           toast.error(`Phone on line ${i + 1} must be 10 digits.`);
           return false;
         }
@@ -243,24 +325,27 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     }
     if (!formData.pickupDate || !formData.pickupTime) {
       toast.error("Select pickup date and time.");
+      dateRef.current?.focus();
       return false;
     }
     if (formData.driverNumber && !phoneRegex.test(formData.driverNumber)) {
       toast.error("Driver phone must be 10 digits.");
+      focusField("driverNumber");
       return false;
     }
     if (formData.otp && !otpRegex.test(formData.otp)) {
       toast.error("OTP must be 4–6 digits.");
+      otpRef.current?.focus();
       return false;
     }
     return true;
   };
 
+  // ── Submit ─────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
-    // Auto-save driver as non-prime whenever a message is generated
     if (formData.driverName.trim()) {
       try {
         await addDriver({
@@ -271,10 +356,9 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         });
       } catch (err) {
         console.warn("Driver auto-save failed:", err);
-        // never block message generation
       }
     }
-    setDriverRefreshKey((k) => k + 1); // refresh dropdown list
+    setDriverRefreshKey((k) => k + 1);
 
     onGenerate({
       ...formData,
@@ -288,7 +372,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
       pickupTime: includeDateTime ? formData.pickupTime : "N/A",
       otp: includeOTP ? formData.otp : "N/A",
     });
-    toast.success("Message generated.");
+    toast.success("Message generated");
   };
 
   const handleSaveDraft = () => {
@@ -306,12 +390,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     toast.success("Draft saved.");
   };
 
-  const handleClear = () => {
-    setFormData(emptyForm);
-    setBulk(emptyBulk);
-    toast("Form cleared.");
-  };
-
   const sharedLabel =
     formData.bookingMode === "same_pickup"
       ? "Common Pickup Location"
@@ -320,23 +398,23 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     formData.bookingMode === "same_pickup"
       ? "Drop location(s)"
       : "Pickup location(s)";
-  const individualPlaceholder =
+  const indivPlaceholder =
     formData.bookingMode === "same_pickup"
       ? "Manohar Airport T1\nPanaji Bus Stand\nMapusa Circle"
       : "Dhargal Janata Garage\nColvale Circle\nMapusa Bus Stand";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* ── Booking Mode ── */}
+      {/* ── Booking Mode ─────────────────────────────────────────── */}
       <section className="space-y-2">
-        <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
-          <Users size={18} /> Booking Type
+        <h3 className="font-semibold text-[#075E54] flex items-center gap-2 text-sm">
+          <Users size={16} /> Booking Type
         </h3>
         <div className="flex gap-2 flex-wrap">
           {(["single", "same_pickup", "same_drop"] as BookingMode[]).map(
             (mode) => {
               const labels: Record<BookingMode, string> = {
-                single: "Single Passenger",
+                single: "Single",
                 same_pickup: "Multi – Same Pickup",
                 same_drop: "Multi – Same Drop",
               };
@@ -345,7 +423,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
                   key={mode}
                   type="button"
                   onClick={() => setMode(mode)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
                     formData.bookingMode === mode
                       ? "bg-[#075E54] text-white border-[#075E54]"
                       : "bg-white text-gray-600 border-gray-300 hover:border-[#25D366]"
@@ -359,13 +437,15 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         </div>
       </section>
 
-      {/* ── Single Passenger ── */}
+      {/* ── Single Passenger ─────────────────────────────────────── */}
       {formData.bookingMode === "single" && (
         <>
           <section className="space-y-3">
-            <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
-              <User size={18} /> Passenger Details
+            <h3 className="font-semibold text-[#075E54] flex items-center gap-2 text-sm">
+              <User size={16} /> Passenger
             </h3>
+
+            {/* Arrow-key navigable passenger autocomplete */}
             <Crewautocomplete
               value={formData.passengerName}
               onSelect={(name, phone, address, locationLink) =>
@@ -377,111 +457,115 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
                   ...(locationLink ? { locationLink } : {}),
                 }))
               }
+              onCommit={() => focusAfter("passengerName")}
             />
+
             <input
+              id="passengerPhone"
               value={formData.passengerPhone}
               onChange={(e) =>
                 set("passengerPhone", e.target.value.replace(/\D/g, ""))
               }
+              onKeyDown={enterNext("passengerPhone")}
               placeholder="Passenger Phone"
+              inputMode="numeric"
+              maxLength={10}
               className="input-style"
             />
           </section>
 
-          <section className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
-                  <MapPin size={18} /> Pickup Locations
-                </h3>
-                <button
-                  type="button"
-                  onClick={handleSwap}
-                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-[#25D366] text-gray-600 hover:text-white transition-all"
-                >
-                  <ArrowUpDown size={14} /> Swap
-                </button>
-              </div>
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-[#075E54] flex items-center gap-2 text-sm">
+                <MapPin size={16} /> Locations
+              </h3>
+              <button
+                type="button"
+                onClick={handleSwap}
+                title="Ctrl+Shift+S"
+                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-[#25D366] text-gray-600 hover:text-white transition-all"
+              >
+                <ArrowUpDown size={13} /> Swap
+              </button>
+            </div>
+
+            {/* Pickup */}
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Pickup
+              </p>
               {formData.pickupLocations.map((loc, i) => (
-                <div key={i} className="flex gap-2">
-                  <LocationInput
-                    value={loc}
-                    onChange={(v) => updateLoc("pickupLocations", i, v)}
-                    placeholder={`Pickup ${i + 1}`}
-                  />
+                <div key={i} className="flex gap-2 items-center">
+                  <div className="flex-1">
+                    <LocationInput
+                      inputId={`pickup-${i}`}
+                      value={loc}
+                      onChange={(v) => updateLoc("pickupLocations", i, v)}
+                      placeholder={`Pickup ${i + 1}`}
+                      onEnter={() => focusAfter(`pickup-${i}`)}
+                    />
+                  </div>
                   {formData.pickupLocations.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeLoc("pickupLocations", i)}
-                      className="text-red-500"
+                      className="text-red-400 hover:text-red-600 px-1 text-lg leading-none"
                     >
                       ✕
                     </button>
                   )}
                 </div>
               ))}
-              <button
-                type="button"
-                onClick={() => addLoc("pickupLocations")}
-                className="text-sm text-[#075E54] font-medium hover:underline"
-              >
-                + Add Pickup
-              </button>
             </div>
 
-            <div className="space-y-3">
-              <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
-                <MapPin size={18} /> Drop Locations
-              </h3>
+            {/* Drop */}
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Drop
+              </p>
               {formData.dropLocations.map((loc, i) => (
-                <div key={i} className="flex gap-2">
-                  <LocationInput
-                    value={loc}
-                    onChange={(v) => updateLoc("dropLocations", i, v)}
-                    placeholder={`Drop ${i + 1}`}
-                  />
+                <div key={i} className="flex gap-2 items-center">
+                  <div className="flex-1">
+                    <LocationInput
+                      inputId={`drop-${i}`}
+                      value={loc}
+                      onChange={(v) => updateLoc("dropLocations", i, v)}
+                      placeholder={`Drop ${i + 1}`}
+                      onEnter={() => focusAfter(`drop-${i}`)}
+                    />
+                  </div>
                   {formData.dropLocations.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeLoc("dropLocations", i)}
-                      className="text-red-500"
+                      className="text-red-400 hover:text-red-600 px-1 text-lg leading-none"
                     >
                       ✕
                     </button>
                   )}
                 </div>
               ))}
-              <button
-                type="button"
-                onClick={() => addLoc("dropLocations")}
-                className="text-sm text-[#075E54] font-medium hover:underline"
-              >
-                + Add Drop
-              </button>
             </div>
-          </section>
 
-          <section className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-600">
-              Location Link (Optional)
-            </h4>
             <input
+              id="locationLink"
               value={formData.locationLink}
               onChange={(e) => set("locationLink", e.target.value)}
-              placeholder="Google Maps link"
+              onKeyDown={enterNext("locationLink")}
+              placeholder="Google Maps link (optional)"
               className="input-style"
             />
           </section>
         </>
       )}
 
-      {/* ── Multi-Passenger ── */}
+      {/* ── Multi-Passenger ──────────────────────────────────────── */}
       {(formData.bookingMode === "same_pickup" ||
         formData.bookingMode === "same_drop") && (
         <>
           <section className="space-y-3">
-            <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
-              <MapPin size={18} /> {sharedLabel}
+            <h3 className="font-semibold text-[#075E54] flex items-center gap-2 text-sm">
+              <MapPin size={16} /> {sharedLabel}
             </h3>
             <LocationInput
               value={formData.sharedLocation}
@@ -491,33 +575,33 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
             <input
               value={formData.sharedLocationLink}
               onChange={(e) => set("sharedLocationLink", e.target.value)}
-              placeholder="Map link for shared location (optional)"
+              placeholder="Map link (optional)"
               className="input-style"
             />
           </section>
 
-          <section className="space-y-4">
-            <h3 className="font-semibold text-[#075E54] flex items-center gap-2">
-              <Users size={18} /> Passengers
+          <section className="space-y-3">
+            <h3 className="font-semibold text-[#075E54] flex items-center gap-2 text-sm">
+              <Users size={16} /> Passengers
             </h3>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-600 flex items-center gap-1">
-                <User size={13} /> Names <span className="text-red-400">*</span>
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Names *
               </label>
               <textarea
                 value={bulk.names}
                 onChange={(e) =>
                   setBulk((b) => ({ ...b, names: e.target.value }))
                 }
-                placeholder={"Seemant\nYogita\nAnkita\nGarv"}
+                placeholder={"Seemant\nYogita\nAnkita"}
                 rows={4}
                 className="input-style resize-none font-mono text-sm"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-600">
-                📞 Phones{" "}
-                <span className="text-xs text-gray-400 font-normal ml-2">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Phones{" "}
+                <span className="normal-case font-normal text-gray-400">
                   optional
                 </span>
               </label>
@@ -526,15 +610,15 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
                 onChange={(e) =>
                   setBulk((b) => ({ ...b, phones: e.target.value }))
                 }
-                placeholder={"8813881345\n9874563215"}
+                placeholder={"9876543210\n8813881345"}
                 rows={3}
                 className="input-style resize-none font-mono text-sm"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-600 flex items-center gap-1">
-                <MapPin size={13} /> {individualLabel}
-                <span className="text-xs text-gray-400 font-normal ml-1">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                {individualLabel}{" "}
+                <span className="normal-case font-normal text-gray-400">
                   optional
                 </span>
               </label>
@@ -543,7 +627,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
                 onChange={(e) =>
                   setBulk((b) => ({ ...b, locations: e.target.value }))
                 }
-                placeholder={individualPlaceholder}
+                placeholder={indivPlaceholder}
                 rows={4}
                 className="input-style resize-none font-mono text-sm"
               />
@@ -552,8 +636,11 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         </>
       )}
 
-      {/* ── Driver + Schedule ── */}
+      {/* ── Driver ───────────────────────────────────────────────── */}
       <section className="space-y-3">
+        <h3 className="font-semibold text-[#075E54] text-sm"> Driver</h3>
+
+        {/* Arrow-key navigable driver autocomplete */}
         <DriverSearchInput
           value={formData.driverName}
           refreshKey={driverRefreshKey}
@@ -561,7 +648,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
             setFormData((prev) => ({
               ...prev,
               driverName: driver.name,
-              // Only overwrite phone/vehicle when a suggestion was picked, not on every keystroke
               ...(nameOnly
                 ? {}
                 : {
@@ -570,81 +656,110 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
                   }),
             }))
           }
+          onCommit={() => focusAfter("driverName")}
         />
+
         <input
+          id="driverNumber"
           value={formData.driverNumber}
           onChange={(e) =>
             set("driverNumber", e.target.value.replace(/\D/g, ""))
           }
+          onKeyDown={enterNext("driverNumber")}
           placeholder="Driver Phone"
+          inputMode="numeric"
+          maxLength={10}
           className="input-style"
         />
         <input
+          id="vehicleNumber"
           value={formData.vehicleNumber}
-          onChange={(e) => set("vehicleNumber", e.target.value)}
+          onChange={(e) => set("vehicleNumber", e.target.value.toUpperCase())}
+          onKeyDown={enterNext("vehicleNumber")}
           placeholder="Vehicle Number"
           className="input-style"
         />
+      </section>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-600">
-              Pickup Date & Time
-            </label>
-            <div className="flex items-center gap-3 text-xs">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => set("pickupDate", today)}
-                  className="px-3 py-1 rounded-full bg-gray-100 hover:bg-[#25D366] hover:text-white transition"
-                >
-                  Today
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    set("pickupDate", today);
-                    set("pickupTime", currentTime);
-                  }}
-                  className="px-3 py-1 rounded-full bg-gray-100 hover:bg-[#075E54] hover:text-white transition"
-                >
-                  Now
-                </button>
-              </div>
-              <div className="h-4 w-px bg-gray-300" />
-              <button
-                type="button"
-                onClick={() => set("pickupDate", tomorrow)}
-                className="px-3 py-1 rounded-full border border-gray-300 text-gray-600 hover:border-[#25D366] hover:text-[#25D366] transition"
-              >
-                Tomorrow
-              </button>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <input
-              type="date"
-              value={formData.pickupDate}
-              onChange={(e) => set("pickupDate", e.target.value)}
-              className="input-style flex-1"
-            />
-            <input
-              type="time"
-              value={formData.pickupTime}
-              min={formData.pickupDate === today ? currentTime : undefined}
-              onChange={(e) => set("pickupTime", e.target.value)}
-              className="input-style flex-1"
-            />
+      {/* ── Date & Time ──────────────────────────────────────────── */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <label className="text-sm font-semibold text-[#075E54]">
+            Pickup Date & Time
+          </label>
+          <div className="flex items-center gap-1.5 text-xs">
+            <button
+              type="button"
+              onClick={setToday}
+              title="Ctrl+D"
+              className="px-2.5 py-1 rounded-full bg-[#e8faf4] text-[#075E54] font-medium hover:bg-[#25D366] hover:text-white transition"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={setNow}
+              title="Ctrl+Shift+N"
+              className="px-2.5 py-1 rounded-full bg-[#e8faf4] text-[#075E54] font-medium hover:bg-[#075E54] hover:text-white transition"
+            >
+              Now
+            </button>
+            <span className="text-gray-300">|</span>
+            <button
+              type="button"
+              onClick={setTomorrow}
+              title="Ctrl+/"
+              className="px-2.5 py-1 rounded-full border border-gray-200 text-gray-500 hover:border-[#25D366] hover:text-[#25D366] transition"
+            >
+              Tomorrow
+            </button>
           </div>
         </div>
+        <div className="flex gap-3">
+          <input
+            id="pickupDate"
+            ref={dateRef}
+            type="date"
+            value={formData.pickupDate}
+            onChange={(e) => {
+              set("pickupDate", e.target.value);
+              setTimeout(() => timeRef.current?.focus(), 50);
+            }}
+            className="input-style flex-1"
+          />
+          <input
+            id="pickupTime"
+            ref={timeRef}
+            type="time"
+            value={formData.pickupTime}
+            min={formData.pickupDate === today ? currentTime : undefined}
+            onChange={(e) => set("pickupTime", e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                otpRef.current?.focus();
+              }
+            }}
+            className="input-style flex-1"
+          />
+        </div>
+      </section>
 
+      {/* ── OTP + Notes ──────────────────────────────────────────── */}
+      <section className="space-y-3">
         <input
+          id="otp"
+          ref={otpRef}
           value={formData.otp}
           onChange={(e) => set("otp", e.target.value.replace(/\D/g, ""))}
-          placeholder="OTP"
+          onKeyDown={enterNext("otp")}
+          placeholder="OTP "
+          inputMode="numeric"
+          maxLength={6}
           className="input-style"
         />
         <textarea
+          id="additionalNotes"
           value={formData.additionalNotes}
           onChange={(e) => set("additionalNotes", e.target.value)}
           placeholder="Additional Notes (optional)"
@@ -653,60 +768,66 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         />
       </section>
 
-      {/* ── Toggles ── */}
-      <div className="flex sm:flex-wrap justify-between gap-6 pt-4">
-        {[
-          {
-            label: "Include OTP",
-            state: includeOTP,
-            toggle: () => setIncludeOTP(!includeOTP),
-          },
-          {
-            label: "Include Date & Time",
-            state: includeDateTime,
-            toggle: () => setIncludeDateTime(!includeDateTime),
-          },
-        ].map(({ label, state, toggle }) => (
-          <div
+      {/* ── Toggles ──────────────────────────────────────────────── */}
+      <div className="flex flex-column sm:flex-row sm:justify-between w-full gap-3">
+        {(
+          [
+            {
+              label: "Include OTP",
+              state: includeOTP,
+              toggle: () => setIncludeOTP((v) => !v),
+            },
+            {
+              label: "Include Date & Time",
+              state: includeDateTime,
+              toggle: () => setIncludeDateTime((v) => !v),
+            },
+          ] as const
+        ).map(({ label, state, toggle }) => (
+          <button
             key={label}
-            className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-xl w-full sm:w-auto border border-gray-200"
+            type="button"
+            onClick={toggle}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+              state
+                ? "bg-[#e8faf4] border-[#25D366] text-[#075E54]"
+                : "bg-gray-50 border-gray-200 text-gray-500"
+            }`}
           >
-            <span className="text-sm font-medium text-gray-700">{label}</span>
-            <button
-              type="button"
-              onClick={toggle}
-              className={`relative w-12 h-6 rounded-full ml-4 transition-colors duration-300 ${state ? "bg-[#25D366]" : "bg-gray-300"}`}
+            <span
+              className={`w-8 h-4 rounded-full relative transition-colors ${state ? "bg-[#25D366]" : "bg-gray-300"}`}
             >
               <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${state ? "translate-x-6" : ""}`}
+                className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all ${state ? "left-4" : "left-0.5"}`}
               />
-            </button>
-          </div>
+            </span>
+            {label}
+          </button>
         ))}
       </div>
 
-      {/* ── Buttons ── */}
-      <div className="flex gap-3 pt-4">
+      {/* ── Action Buttons ───────────────────────────────────────── */}
+      <div className="flex gap-3 pt-1">
         <button
           type="submit"
-          className="flex-1 bg-[#168c41] hover:bg-[#07c251] text-white py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors"
+          className="flex-1 bg-[#168c41] hover:bg-[#0ea03a] active:scale-[.98] text-white py-3 rounded-xl flex items-center justify-center gap-2 transition-all font-semibold shadow-sm"
         >
-          <Sparkles size={16} /> Generate
+          <Sparkles size={16} /> Generate Message
         </button>
         <button
           type="button"
           onClick={handleSaveDraft}
-          className="px-4 bg-yellow-100 hover:bg-yellow-200 rounded-lg text-sm font-medium transition-colors"
+          className="px-4 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl text-sm font-medium text-amber-700 transition-colors"
         >
           Save Draft
         </button>
         <button
           type="button"
           onClick={handleClear}
-          className="px-4 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          aria-label="Clear form"
+          title="Ctrl+Shift+C"
+          className="px-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors text-gray-500"
         >
-          <RotateCcw size={16} />
+          <RotateCcw size={15} />
         </button>
       </div>
     </form>

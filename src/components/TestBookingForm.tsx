@@ -13,6 +13,7 @@ import { addDriver } from "../services/drivers";
 import Crewautocomplete from "./Crewautocomplete";
 import DriverSearchInput from "./ui/DriverSearchInput";
 import LocationInput from "./ui/LocationInput";
+import PasteImport from "./ui/PasteImport";
 
 export type DraftType = MessageType & {
   id: string;
@@ -118,7 +119,7 @@ const focusAfter = (currentId: string) => {
 };
 
 // ─── Component ─────────────────────────────────────────────────────
-const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
+const TestBookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
   const [formData, setFormData] = useState<MessageType>(
     initialDraft ?? emptyForm,
   );
@@ -162,27 +163,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     setBulk(emptyBulk);
   };
 
-  const setLocationLink = () => {
-    const value = formData.locationLink?.trim();
-
-    if (!value) return;
-
-    // If it's already a Google Maps link, do nothing
-    if (value.includes("google.com/maps")) return;
-
-    // Match lat,long pattern
-    const coordsMatch = value.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
-
-    if (coordsMatch) {
-      const lat = coordsMatch[1];
-      const lng = coordsMatch[2];
-
-      const googleLink = `https://maps.google.com/?q=${lat},${lng}`;
-
-      set("locationLink", googleLink);
-    }
-  };
-
   // ── helpers ────────────────────────────────────────────────────────
   const updateLoc = (
     type: "pickupLocations" | "dropLocations",
@@ -205,32 +185,48 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
       pickupLocations: [...prev.dropLocations],
       dropLocations: [...prev.pickupLocations],
     }));
-    toast.success("Pickup & Drop switched");
+    toast("🔄 Pickup & Drop switched");
   }, []);
 
   const handleClear = useCallback(() => {
     setFormData(emptyForm);
     setBulk(emptyBulk);
-    toast.success("Form cleared");
+    toast("🗑 Form cleared");
     setTimeout(() => focusField("passengerName"), 50);
   }, []);
 
+  const handleImport = (
+    data: Partial<MessageType> & {
+      passengers?: Passenger[];
+      bulk?: { names: string; phones: string; locations: string };
+    },
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      ...data,
+      passengers: data.passengers ?? prev.passengers,
+    }));
+    if (data.bulk) setBulk(data.bulk);
+    toast.success("Form filled from Excel paste!");
+    setTimeout(() => focusField("passengerName"), 80);
+  };
+
   const setToday = useCallback(() => {
     set("pickupDate", today);
-    toast.success("Today");
+    toast("📅 Today");
     setTimeout(() => timeRef.current?.focus(), 50);
   }, [today, set]);
 
   const setTomorrow = useCallback(() => {
     set("pickupDate", tomorrow);
-    toast.success("Tomorrow");
+    toast("📅 Tomorrow");
     setTimeout(() => timeRef.current?.focus(), 50);
   }, [tomorrow, set]);
 
   const setNow = useCallback(() => {
     set("pickupDate", today);
     set("pickupTime", currentTime);
-    toast.success("Now");
+    toast("⏰ Now");
     setTimeout(() => otpRef.current?.focus(), 50);
   }, [today, currentTime, set]);
 
@@ -290,7 +286,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         e.preventDefault();
         if (formData.passengerPhone) {
           navigator.clipboard.writeText(formData.passengerPhone);
-          toast.success("Passenger number copied");
+          toast.success("📋 Passenger number copied");
         } else toast.error("No passenger number");
         return;
       }
@@ -299,7 +295,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         e.preventDefault();
         if (formData.driverNumber) {
           navigator.clipboard.writeText(formData.driverNumber);
-          toast.success("Driver number copied");
+          toast.success("📋 Driver number copied");
         } else toast.error("No driver number");
         return;
       }
@@ -393,7 +389,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
       pickupTime: includeDateTime ? formData.pickupTime : "N/A",
       otp: includeOTP ? formData.otp : "N/A",
     });
-    toast.success("Message generated");
+    toast.success("✅ Message generated");
   };
 
   const handleSaveDraft = () => {
@@ -456,6 +452,9 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
             },
           )}
         </div>
+
+        {/* Paste from Excel */}
+        <PasteImport onImport={handleImport} />
       </section>
 
       {/* ── Single Passenger ─────────────────────────────────────── */}
@@ -567,25 +566,15 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
                 </div>
               ))}
             </div>
-            <div className="w-full">
-              <input
-                id="locationLink"
-                value={formData.locationLink}
-                onChange={(e) => set("locationLink", e.target.value)}
-                onKeyDown={enterNext("locationLink")}
-                placeholder="Lat,Long or Google Maps link"
-                className="input-style w-full"
-              />
 
-              <div className="flex justify-end mt-1">
-                <span
-                  onClick={setLocationLink}
-                  className="text-xs text-[#6b7280] cursor-pointer hover:text-[#25D366] transition select-none"
-                >
-                  convert to maps link
-                </span>
-              </div>
-            </div>
+            <input
+              id="locationLink"
+              value={formData.locationLink}
+              onChange={(e) => set("locationLink", e.target.value)}
+              onKeyDown={enterNext("locationLink")}
+              placeholder="📍 Google Maps link (optional)"
+              className="input-style"
+            />
           </section>
         </>
       )}
@@ -669,7 +658,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
 
       {/* ── Driver ───────────────────────────────────────────────── */}
       <section className="space-y-3">
-        <h3 className="font-semibold text-[#075E54] text-sm"> Driver</h3>
+        <h3 className="font-semibold text-[#075E54] text-sm">🚗 Driver</h3>
 
         {/* Arrow-key navigable driver autocomplete */}
         <DriverSearchInput
@@ -716,7 +705,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
       <section className="space-y-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <label className="text-sm font-semibold text-[#075E54]">
-            Pickup Date & Time
+            📅 Pickup Date & Time
           </label>
           <div className="flex items-center gap-1.5 text-xs">
             <button
@@ -784,7 +773,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
           value={formData.otp}
           onChange={(e) => set("otp", e.target.value.replace(/\D/g, ""))}
           onKeyDown={enterNext("otp")}
-          placeholder="OTP "
+          placeholder="OTP (optional)"
           inputMode="numeric"
           maxLength={6}
           className="input-style"
@@ -800,7 +789,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
       </section>
 
       {/* ── Toggles ──────────────────────────────────────────────── */}
-      <div className="flex flex-column sm:flex-row sm:justify-between w-full gap-3">
+      <div className="flex flex-wrap gap-3">
         {(
           [
             {
@@ -837,6 +826,23 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         ))}
       </div>
 
+      {/* ── Shortcut bar ─────────────────────────────────────────── */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-400 font-mono pt-1 border-t border-gray-100">
+        {[
+          ["Ctrl+.", "Today→Time"],
+          ["Ctrl+/", "Tomorrow"],
+          ["Ctrl+Shift+D", "Swap"],
+          ["Ctrl+Shift+C", "Clear"],
+          ["Alt+P", "Copy Pax#"],
+          ["Alt+D", "Copy Driver#"],
+          ["↑↓ + ↵", "Pick from list"],
+        ].map(([key, label]) => (
+          <span key={key}>
+            <kbd className="bg-gray-100 px-1 py-0.5 rounded">{key}</kbd> {label}
+          </span>
+        ))}
+      </div>
+
       {/* ── Action Buttons ───────────────────────────────────────── */}
       <div className="flex gap-3 pt-1">
         <button
@@ -865,4 +871,4 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
   );
 };
 
-export default BookingForm;
+export default TestBookingForm;

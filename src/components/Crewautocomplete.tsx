@@ -92,11 +92,19 @@ const CrewAutocomplete = ({
     setActiveIdx(-1);
   };
 
+  const mapsLink = (lat?: number | null, lng?: number | null): string =>
+    lat && lng ? `${lat},${lng}` : "";
+
   const pick = (crew: Crew) => {
     setQuery(crew.name);
     setOpen(false);
     setActiveIdx(-1);
-    onSelect(crew.name, crew.phone ?? "", crew.address ?? "", "");
+    onSelect(
+      crew.name,
+      crew.phone ?? "",
+      crew.address ?? "",
+      mapsLink(crew.lat, crew.lng),
+    );
     // move focus to next field after selection
     setTimeout(() => onCommit?.(), 30);
   };

@@ -25,23 +25,49 @@ export const fetchDrivers = async (): Promise<Driver[]> => {
 };
 
 export const addDriver = async (driver: Omit<Driver, "id">) => {
-  const { data, error } = await supabase
-    .from("drivers")
-    .insert([{
-      name:          driver.name,
-      phone:         driver.phone,
-      vehicleNumber: driver.vehicleNumber,
-      vehicleType:   driver.vehicleType  ?? null,
-      isPrimary:     driver.isPrimary    ?? false,
-    }])
-    .select();
+  try {
+    // check existing driver
+    const { data: existing, error: checkError } = await supabase
+      .from("drivers")
+      .select("id")
+      .eq("name", driver.name)
+      .eq("vehicleNumber", driver.vehicleNumber)
+      .limit(1);
 
-  if (error) {
-    console.error("Add driver error:", error);
-    throw error;
+    if (checkError) {
+      console.error("Driver check error:", checkError);
+      throw checkError;
+    }
+
+    // if driver already exists → stop
+    if (existing && existing.length > 0) {
+      return existing;
+    }
+
+    // otherwise insert
+    const { data, error } = await supabase
+      .from("drivers")
+      .insert([
+        {
+          name: driver.name,
+          phone: driver.phone,
+          vehicleNumber: driver.vehicleNumber,
+          vehicleType: driver.vehicleType ?? null,
+          isPrimary: driver.isPrimary ?? false,
+        },
+      ])
+      .select();
+
+    if (error) {
+      console.error("Add driver error:", error);
+      throw error;
+    }
+
+    return data ?? [];
+  } catch (err) {
+    console.error("Driver add failed:", err);
+    throw err;
   }
-
-  return (data ?? []) as Driver[];
 };
 
 export const updateDriver = async (id: string, updates: Partial<Omit<Driver, "id">>) => {

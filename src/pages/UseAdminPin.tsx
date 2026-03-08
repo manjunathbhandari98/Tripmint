@@ -9,6 +9,7 @@ interface PinModalProps {
   onCancel: () => void;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 const PinModal = ({ onSuccess, onCancel }: PinModalProps) => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);

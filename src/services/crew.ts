@@ -22,8 +22,20 @@ const rowToCrew = (row: any): Crew => ({
   lat: row.lat,
   lng: row.lng,
   designation: row.designation,
-  // Handle both snake_case (Postgres default) and camelCase column names
-  bookingLeadTime: row.booking_lead_time ?? row.bookingLeadTime,
+  bookingLeadTime: row.bookingLeadTime ?? null,
+});
+
+// Converts a Crew object to the exact DB column names Supabase expects
+// All columns are camelCase in the DB (same pattern as drivers table)
+const toDbRow = (crew: Partial<Crew>): Record<string, unknown> => ({
+  ...(crew.name            !== undefined && { name:            crew.name }),
+  ...(crew.phone           !== undefined && { phone:           crew.phone }),
+  ...(crew.address         !== undefined && { address:         crew.address ?? null }),
+  ...(crew.location        !== undefined && { location:        crew.location ?? null }),
+  ...(crew.lat             !== undefined && { lat:             crew.lat ?? null }),
+  ...(crew.lng             !== undefined && { lng:             crew.lng ?? null }),
+  ...(crew.designation     !== undefined && { designation:     crew.designation ?? null }),
+  ...(crew.bookingLeadTime !== undefined && { bookingLeadTime: crew.bookingLeadTime ?? null }),
 });
 
 export const fetchCrew = async (): Promise<Crew[]> => {
@@ -40,19 +52,10 @@ export const fetchCrew = async (): Promise<Crew[]> => {
   return (data ?? []).map(rowToCrew);
 };
 
-export const addCrew = async (crew: Crew) => {
+export const addCrew = async (crew: Omit<Crew, "id">): Promise<Crew[]> => {
   const { data, error } = await supabase
     .from("crew")
-    .insert([{
-      name: crew.name,
-      phone: crew.phone,
-      address: crew.address,
-      location: crew.location,
-      lat: crew.lat ?? null,
-      lng: crew.lng ?? null,
-      designation: crew.designation ?? null,
-      booking_lead_time: crew.bookingLeadTime ?? null,
-    }])
+    .insert([toDbRow(crew)])
     .select();
 
   if (error) {
@@ -63,16 +66,10 @@ export const addCrew = async (crew: Crew) => {
   return (data ?? []).map(rowToCrew);
 };
 
-export const updateCrew = async (id: string, updates: Partial<Crew>) => {
-  const dbUpdates: Record<string, unknown> = { ...updates };
-  if ("bookingLeadTime" in updates) {
-    dbUpdates.booking_lead_time = updates.bookingLeadTime;
-    delete dbUpdates.bookingLeadTime;
-  }
-
+export const updateCrew = async (id: string, updates: Partial<Omit<Crew, "id">>): Promise<Crew[]> => {
   const { data, error } = await supabase
     .from("crew")
-    .update(dbUpdates)
+    .update(toDbRow(updates))
     .eq("id", id)
     .select();
 
@@ -84,7 +81,7 @@ export const updateCrew = async (id: string, updates: Partial<Crew>) => {
   return (data ?? []).map(rowToCrew);
 };
 
-export const deleteCrew = async (id: string) => {
+export const deleteCrew = async (id: string): Promise<void> => {
   const { error } = await supabase.from("crew").delete().eq("id", id);
   if (error) {
     console.error("Delete crew error:", error);

@@ -134,6 +134,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     return emptyBulk;
   });
   const [includeOTP, setIncludeOTP] = useState(true);
+  const [includeNotes, setIncludeNotes] = useState(true);
   const [includeDateTime, setIncludeDateTime] = useState(true);
 
   // refs for programmatic focus
@@ -164,22 +165,13 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
 
   const setLocationLink = () => {
     const value = formData.locationLink?.trim();
-
     if (!value) return;
-
-    // If it's already a Google Maps link, do nothing
     if (value.includes("google.com/maps")) return;
-
-    // Match lat,long pattern
     const coordsMatch = value.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
-
     if (coordsMatch) {
       const lat = coordsMatch[1];
       const lng = coordsMatch[2];
-
-      const googleLink = `https://maps.google.com/?q=${lat},${lng}`;
-
-      set("locationLink", googleLink);
+      set("locationLink", `https://maps.google.com/?q=${lat},${lng}`);
     }
   };
 
@@ -261,31 +253,41 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
       const focused = document.activeElement?.tagName;
       const typing = focused === "INPUT" || focused === "TEXTAREA";
 
-      // Ctrl+. → Today + auto-focus time
       if (ctrl && e.key === ".") {
         e.preventDefault();
         setToday();
         return;
       }
-      // Ctrl+/ → Tomorrow + auto-focus time
       if (ctrl && e.key === "/") {
         e.preventDefault();
         setTomorrow();
         return;
       }
-      // Ctrl+Shift+D → Swap pickup & drop
       if (ctrl && e.shiftKey && e.key.toLowerCase() === "d") {
         e.preventDefault();
         handleSwap();
         return;
       }
-      // Ctrl+Shift+C → Clear form (only when not typing)
+      if (e.altKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        setIncludeOTP((v) => !v);
+        return;
+      }
+      if (e.altKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        setIncludeNotes((v) => !v);
+        return;
+      }
+      if (e.altKey && e.key.toLowerCase() === "t") {
+        e.preventDefault();
+        setIncludeDateTime((v) => !v);
+        return;
+      }
       if (ctrl && e.shiftKey && e.key.toLowerCase() === "c" && !typing) {
         e.preventDefault();
         handleClear();
         return;
       }
-      // Alt+P → copy passenger phone
       if (e.altKey && e.key.toLowerCase() === "p") {
         e.preventDefault();
         if (formData.passengerPhone) {
@@ -294,7 +296,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         } else toast.error("No passenger number");
         return;
       }
-      // Alt+D → copy driver phone
       if (e.altKey && e.key.toLowerCase() === "d") {
         e.preventDefault();
         if (formData.driverNumber) {
@@ -304,7 +305,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
         return;
       }
     };
-
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -392,6 +392,13 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
       pickupDate: includeDateTime ? formData.pickupDate : "N/A",
       pickupTime: includeDateTime ? formData.pickupTime : "N/A",
       otp: includeOTP ? formData.otp : "N/A",
+      additionalNotes: includeNotes
+        ? (formData.additionalNotes ?? "")
+            .split("\n")
+            .map((l) => l.trim())
+            .filter((l) => l.length > 0)
+            .join("\n")
+        : "",
     });
     toast.success("Message generated");
   };
@@ -466,7 +473,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
               <User size={16} /> Passenger
             </h3>
 
-            {/* Arrow-key navigable passenger autocomplete */}
             <Crewautocomplete
               value={formData.passengerName}
               onSelect={(name, phone, address, locationLink) =>
@@ -510,7 +516,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
               </button>
             </div>
 
-            {/* Pickup */}
             <div className="space-y-2">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                 Pickup
@@ -539,7 +544,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
               ))}
             </div>
 
-            {/* Drop */}
             <div className="space-y-2">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                 Drop
@@ -567,6 +571,7 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
                 </div>
               ))}
             </div>
+
             <div className="w-full">
               <input
                 id="locationLink"
@@ -576,7 +581,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
                 placeholder="Lat,Long or Google Maps link"
                 className="input-style w-full"
               />
-
               <div className="flex justify-end mt-1">
                 <span
                   onClick={setLocationLink}
@@ -671,7 +675,6 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
       <section className="space-y-3">
         <h3 className="font-semibold text-[#075E54] text-sm"> Driver</h3>
 
-        {/* Arrow-key navigable driver autocomplete */}
         <DriverSearchInput
           value={formData.driverName}
           refreshKey={driverRefreshKey}
@@ -797,19 +800,59 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
           rows={3}
           className="input-style resize-none"
         />
+        <div className="flex flex-wrap gap-2 mt-1">
+          {(
+            [
+              [
+                "Approx. location",
+                "*Note* : Pickup location shown in the app is approximate. Actual drop locations are shared with the driver on WhatsApp.",
+              ],
+              [
+                "Delay possible",
+                "*Note* : Pickup timing may vary slightly due to traffic or previous trips.",
+              ],
+              [
+                "Contact support",
+                "*Note* : For assistance, please contact support.",
+              ],
+            ] as [string, string][]
+          ).map(([label, note]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() =>
+                set(
+                  "additionalNotes",
+                  formData.additionalNotes
+                    ? `${formData.additionalNotes}
+${note}`
+                    : note,
+                )
+              }
+              className="text-xs px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-[#e8faf4] text-gray-500 hover:text-[#075E54] border border-transparent hover:border-[#b2dfdb] transition-all"
+            >
+              + {label}
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* ── Toggles ──────────────────────────────────────────────── */}
-      <div className="flex flex-column sm:flex-row sm:justify-between w-full gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
         {(
           [
             {
-              label: "Include OTP",
+              label: "OTP",
               state: includeOTP,
               toggle: () => setIncludeOTP((v) => !v),
             },
             {
-              label: "Include Date & Time",
+              label: "Notes",
+              state: includeNotes,
+              toggle: () => setIncludeNotes((v) => !v),
+            },
+            {
+              label: "Date & Time",
               state: includeDateTime,
               toggle: () => setIncludeDateTime((v) => !v),
             },
@@ -819,24 +862,29 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
             key={label}
             type="button"
             onClick={toggle}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
-              state
-                ? "bg-[#e8faf4] border-[#25D366] text-[#075E54]"
-                : "bg-gray-50 border-gray-200 text-gray-500"
-            }`}
+            className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm font-medium transition-all
+      ${
+        state
+          ? "bg-[#e8faf4] border-[#25D366] text-[#075E54]"
+          : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+      }`}
           >
+            <span>{label}</span>
+
             <span
-              className={`w-8 h-4 rounded-full relative transition-colors ${state ? "bg-[#25D366]" : "bg-gray-300"}`}
+              className={`w-9 h-5 rounded-full relative transition-colors ${
+                state ? "bg-[#25D366]" : "bg-gray-300"
+              }`}
             >
               <span
-                className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all ${state ? "left-4" : "left-0.5"}`}
+                className={`absolute top-[2px] w-4 h-4 bg-white rounded-full shadow transition-all ${
+                  state ? "left-[18px]" : "left-[2px]"
+                }`}
               />
             </span>
-            {label}
           </button>
         ))}
       </div>
-
       {/* ── Action Buttons ───────────────────────────────────────── */}
       <div className="flex gap-3 pt-1">
         <button

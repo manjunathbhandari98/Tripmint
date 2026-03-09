@@ -158,7 +158,7 @@ const CrewAutocomplete = ({
           query.length >= 2 && suggestions.length > 0 && setOpen(true)
         }
         placeholder={loading ? "Loading crew…" : placeholder}
-        disabled={loading}
+        // disabled={loading}
         autoComplete="off"
         className="input-style disabled:opacity-60"
       />

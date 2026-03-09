@@ -22,6 +22,9 @@ const SHORTCUTS = [
   { keys: "Alt + P", action: "Copy Passenger Phone" },
   { keys: "Alt + D", action: "Copy Driver Phone" },
   { keys: "Ctrl + C", action: "Copy Generated Message" },
+  { keys: "ALT + O", action: "Toggle OTP" },
+  { keys: "ALT + N", action: "Toggle Notes" },
+  { keys: "ALT + T", action: "Toggle Pickup Date/Time" },
 ];
 
 const AppWrapper = () => {

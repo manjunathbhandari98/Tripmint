@@ -6,23 +6,20 @@ import {
   ChevronRight,
   Clock,
   Hash,
-  HelpCircle,
   Info,
   Loader2,
   Lock,
   LogOut,
   MapPin,
   Moon,
+  Palette,
   Pencil,
   Phone,
   Plus,
   Search,
-  Shield,
-  Smartphone,
-  Star,
+  Sun,
   Trash2,
   Users,
-  Wifi,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -41,16 +38,30 @@ import {
   updateDriver,
   type Driver,
 } from "../services/drivers";
+import { THEME_COLORS, THEME_OPTIONS, useTheme } from "../theme/ThemeContext";
+import {
+  PrimaryButton,
+  ThemedBadge,
+  ThemedToggle,
+} from "../theme/Themedcomponents";
 import { useAdminPin } from "./UseAdminPin";
 
 /* ─────────────────────────────────────────
    Types
 ───────────────────────────────────────── */
-type View = "main" | "crew" | "drivers";
+type View = "main" | "crew" | "drivers" | "about";
 interface ConfirmState {
   open: boolean;
   name: string;
   onConfirm: () => void;
+}
+interface NotifSettings {
+  notifyNewBooking: boolean;
+  notifyReminder: boolean;
+}
+interface PrefSettings {
+  defaultLeadTime: string;
+  currency: string;
 }
 
 /* ─────────────────────────────────────────
@@ -63,6 +74,7 @@ const initials = (n: string) =>
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
 const avatarBg = (n: string) => {
   const palette = [
     "#00a884",
@@ -187,13 +199,13 @@ const Confirm = ({
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={onCancel}
-          className="py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          className="py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           Cancel
         </button>
         <button
           onClick={onConfirm}
-          className="py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors"
+          className="py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600"
         >
           Delete
         </button>
@@ -203,7 +215,7 @@ const Confirm = ({
 );
 
 /* ─────────────────────────────────────────
-   Field
+   Field  (focus ring uses theme accent)
 ───────────────────────────────────────── */
 const Field = ({
   label,
@@ -221,38 +233,67 @@ const Field = ({
   placeholder: string;
   type?: string;
   required?: boolean;
-}) => (
-  <div>
-    <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
-      {icon}
-      {label}
-      {required && (
-        <span className="text-red-400 normal-case tracking-normal">*</span>
-      )}
-    </label>
-    <input
-      type={type}
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-transparent text-[15px] text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-[#00a884] focus:ring-2 focus:ring-[#00a884]/15 transition-all"
-    />
-  </div>
-);
+}) => {
+  const { tokens } = useTheme();
+  return (
+    <div>
+      <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+        {icon} {label}
+        {required && (
+          <span className="text-red-400 normal-case tracking-normal">*</span>
+        )}
+      </label>
+      <input
+        type={type}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ "--ta": tokens.accent } as React.CSSProperties}
+        className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-transparent text-[15px] text-gray-900 placeholder-gray-400
+          focus:outline-none focus:bg-white focus:border-[var(--ta)] focus:ring-2 focus:ring-[var(--ta)]/15 transition-all"
+      />
+    </div>
+  );
+};
 
 /* ─────────────────────────────────────────
-   Toggle
+   SelectField
 ───────────────────────────────────────── */
-const Toggle = ({ on, toggle }: { on: boolean; toggle: () => void }) => (
-  <button
-    onClick={toggle}
-    className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${on ? "bg-[#00a884]" : "bg-gray-300"}`}
-  >
-    <span
-      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${on ? "translate-x-6" : ""}`}
-    />
-  </button>
-);
+const SelectField = ({
+  label,
+  icon,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) => {
+  const { tokens } = useTheme();
+  return (
+    <div>
+      <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+        {icon} {label}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ "--ta": tokens.accent } as React.CSSProperties}
+        className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-transparent text-[15px] text-gray-900 appearance-none
+          focus:outline-none focus:bg-white focus:border-[var(--ta)] focus:ring-2 focus:ring-[var(--ta)]/15 transition-all"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
 
 /* ─────────────────────────────────────────
    Person Row
@@ -271,54 +312,63 @@ const PersonRow = ({
   onEdit: () => void;
   onDelete: () => void;
   delay?: number;
-}) => (
-  <div
-    className="group bg-white flex items-center gap-3 px-4 py-3.5 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,.06)] hover:shadow-[0_2px_8px_rgba(0,0,0,.1)] transition-all"
-    style={{ animation: `fadeSlide .3s ${delay}ms both` }}
-  >
-    <Avatar name={name} size={46} />
-    <div className="flex-1 min-w-0">
-      <p className="font-semibold text-[15px] text-gray-900 truncate">{name}</p>
-      {line1 && (
-        <p className="text-[13px] text-gray-500 truncate mt-0.5">{line1}</p>
-      )}
-      {line2 && (
-        <p className="text-[12px] text-[#00a884] font-semibold mt-0.5 truncate">
-          {line2}
+}) => {
+  const { tokens } = useTheme();
+  return (
+    <div
+      className="group bg-white flex items-center gap-3 px-4 py-3.5 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,.06)] hover:shadow-[0_2px_8px_rgba(0,0,0,.1)] transition-all"
+      style={{ animation: `fadeSlide .3s ${delay}ms both` }}
+    >
+      <Avatar name={name} size={46} />
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-[15px] text-gray-900 truncate">
+          {name}
         </p>
-      )}
+        {line1 && (
+          <p className="text-[13px] text-gray-500 truncate mt-0.5">{line1}</p>
+        )}
+        {line2 && (
+          <p
+            className="text-[12px] font-semibold mt-0.5 truncate"
+            style={{ color: tokens.accent }}
+          >
+            {line2}
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 sm:flex transition-all">
+        <button
+          onClick={onEdit}
+          className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 transition-colors"
+          style={{ color: tokens.accent }}
+        >
+          <Pencil size={14} />
+        </button>
+        <button
+          onClick={onDelete}
+          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+      <div className="flex items-center gap-1 sm:hidden">
+        <button
+          onClick={onEdit}
+          className="w-8 h-8 flex items-center justify-center rounded-full"
+          style={{ color: tokens.accent }}
+        >
+          <Pencil size={14} />
+        </button>
+        <button
+          onClick={onDelete}
+          className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
     </div>
-    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 sm:flex transition-all">
-      <button
-        onClick={onEdit}
-        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#e8faf4] text-gray-400 hover:text-[#00a884] transition-colors"
-      >
-        <Pencil size={14} />
-      </button>
-      <button
-        onClick={onDelete}
-        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-      >
-        <Trash2 size={14} />
-      </button>
-    </div>
-    {/* Always visible on mobile */}
-    <div className="flex items-center gap-1 sm:hidden">
-      <button
-        onClick={onEdit}
-        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#e8faf4] text-gray-400 hover:text-[#00a884]"
-      >
-        <Pencil size={14} />
-      </button>
-      <button
-        onClick={onDelete}
-        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500"
-      >
-        <Trash2 size={14} />
-      </button>
-    </div>
-  </div>
-);
+  );
+};
 
 /* ─────────────────────────────────────────
    Settings Row
@@ -391,6 +441,67 @@ const Card = ({
     {children}
   </div>
 );
+
+/* ─────────────────────────────────────────
+   Sub-page header  (accent comes from context)
+───────────────────────────────────────── */
+const SubHeader = ({
+  title,
+  subtitle,
+  onBack,
+  right,
+  search,
+  onSearchChange,
+  searchPlaceholder,
+}: {
+  title: string;
+  subtitle?: string;
+  onBack: () => void;
+  right?: React.ReactNode;
+  search?: string;
+  onSearchChange?: (v: string) => void;
+  searchPlaceholder?: string;
+}) => {
+  const { tokens } = useTheme();
+  return (
+    <div className="text-white shrink-0" style={{ background: tokens.header }}>
+      <div className="flex items-center gap-3 px-4 pt-12 pb-4">
+        <button
+          onClick={onBack}
+          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <div className="flex-1">
+          <h1 className="font-bold text-[18px] tracking-tight">{title}</h1>
+          {subtitle && <p className="text-[12px] text-white/65">{subtitle}</p>}
+        </div>
+        {right}
+      </div>
+      {search !== undefined && onSearchChange && (
+        <div className="px-4 pb-4">
+          <div
+            className="flex items-center gap-2.5 rounded-xl px-4 py-2.5"
+            style={{ background: "rgba(0,0,0,0.15)" }}
+          >
+            <Search size={15} className="text-white/60 shrink-0" />
+            <input
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder={searchPlaceholder ?? "Search…"}
+              className="flex-1 bg-transparent text-white placeholder-white/50 text-sm focus:outline-none"
+            />
+            {search && (
+              <button onClick={() => onSearchChange("")}>
+                <X size={13} className="text-white/60" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 /* ─────────────────────────────────────────
    Crew Management
@@ -466,6 +577,7 @@ const emptyCrew = (): Omit<Crew, "id"> => ({
 });
 
 const CrewView = ({ onBack }: { onBack: () => void }) => {
+  const { tokens } = useTheme();
   const [list, setList] = useState<Crew[]>([]);
   const [loading, setLoad] = useState(true);
   const [search, setSearch] = useState("");
@@ -548,52 +660,30 @@ const CrewView = ({ onBack }: { onBack: () => void }) => {
   return (
     <div className="flex flex-col h-full bg-[#efeae2]">
       {PinGate}
-      {/* Header */}
-      <div className="bg-[#008069] text-white shrink-0">
-        <div className="flex items-center gap-3 px-4 pt-12 pb-4">
-          <button
-            onClick={onBack}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div className="flex-1">
-            <h1 className="font-bold text-[18px] tracking-tight">
-              Crew Members
-            </h1>
-            <p className="text-[12px] text-white/65">
-              {loading ? "Loading…" : `${list.length} total members`}
-            </p>
-          </div>
+      <SubHeader
+        title="Crew Members"
+        subtitle={loading ? "Loading…" : `${list.length} total members`}
+        onBack={onBack}
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by name, phone, role…"
+        right={
           <button
             onClick={openAdd}
             className="w-9 h-9 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors"
           >
             <Plus size={18} />
           </button>
-        </div>
-        <div className="px-4 pb-4">
-          <div className="flex items-center gap-2.5 bg-[#006e5a] rounded-xl px-4 py-2.5">
-            <Search size={15} className="text-white/60 shrink-0" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, phone, role…"
-              className="flex-1 bg-transparent text-white placeholder-white/50 text-sm focus:outline-none"
-            />
-            {search && (
-              <button onClick={() => setSearch("")}>
-                <X size={13} className="text-white/60" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
+        }
+      />
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {loading ? (
           <div className="flex items-center justify-center h-40">
-            <Loader2 size={24} className="text-[#00a884] animate-spin" />
+            <Loader2
+              size={24}
+              className="animate-spin"
+              style={{ color: tokens.accent }}
+            />
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-56 gap-3">
@@ -606,7 +696,8 @@ const CrewView = ({ onBack }: { onBack: () => void }) => {
             {!search && (
               <button
                 onClick={openAdd}
-                className="text-sm text-[#00a884] font-bold hover:underline"
+                className="text-sm font-bold hover:underline"
+                style={{ color: tokens.accent }}
               >
                 + Add first member
               </button>
@@ -630,7 +721,6 @@ const CrewView = ({ onBack }: { onBack: () => void }) => {
           ))
         )}
       </div>
-
       <Sheet
         open={sheet}
         onClose={() => setSheet(false)}
@@ -643,18 +733,14 @@ const CrewView = ({ onBack }: { onBack: () => void }) => {
             >
               Cancel
             </button>
-            <button
-              onClick={save}
-              disabled={saving}
-              className="py-3 rounded-xl bg-[#00a884] text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60"
-            >
+            <PrimaryButton onClick={save} disabled={saving} className="py-3">
               {saving ? (
                 <Loader2 size={15} className="animate-spin" />
               ) : (
                 <Check size={15} />
               )}
               {saving ? "Saving…" : "Save"}
-            </button>
+            </PrimaryButton>
           </div>
         }
       >
@@ -728,6 +814,7 @@ const emptyDriver = (): Omit<Driver, "id"> => ({
 });
 
 const DriversView = ({ onBack }: { onBack: () => void }) => {
+  const { tokens } = useTheme();
   const [list, setList] = useState<Driver[]>([]);
   const [loading, setLoad] = useState(true);
   const [search, setSearch] = useState("");
@@ -805,49 +892,30 @@ const DriversView = ({ onBack }: { onBack: () => void }) => {
   return (
     <div className="flex flex-col h-full bg-[#efeae2]">
       {PinGate}
-      <div className="bg-[#008069] text-white shrink-0">
-        <div className="flex items-center gap-3 px-4 pt-12 pb-4">
-          <button
-            onClick={onBack}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div className="flex-1">
-            <h1 className="font-bold text-[18px] tracking-tight">Drivers</h1>
-            <p className="text-[12px] text-white/65">
-              {loading ? "Loading…" : `${list.length} total drivers`}
-            </p>
-          </div>
+      <SubHeader
+        title="Drivers"
+        subtitle={loading ? "Loading…" : `${list.length} total drivers`}
+        onBack={onBack}
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by name, phone, vehicle…"
+        right={
           <button
             onClick={openAdd}
             className="w-9 h-9 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors"
           >
             <Plus size={18} />
           </button>
-        </div>
-        <div className="px-4 pb-4">
-          <div className="flex items-center gap-2.5 bg-[#006e5a] rounded-xl px-4 py-2.5">
-            <Search size={15} className="text-white/60 shrink-0" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, phone, vehicle…"
-              className="flex-1 bg-transparent text-white placeholder-white/50 text-sm focus:outline-none"
-            />
-            {search && (
-              <button onClick={() => setSearch("")}>
-                <X size={13} className="text-white/60" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
+        }
+      />
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {loading ? (
           <div className="flex items-center justify-center h-40">
-            <Loader2 size={24} className="text-[#00a884] animate-spin" />
+            <Loader2
+              size={24}
+              className="animate-spin"
+              style={{ color: tokens.accent }}
+            />
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-56 gap-3">
@@ -860,7 +928,8 @@ const DriversView = ({ onBack }: { onBack: () => void }) => {
             {!search && (
               <button
                 onClick={openAdd}
-                className="text-sm text-[#00a884] font-bold hover:underline"
+                className="text-sm font-bold hover:underline"
+                style={{ color: tokens.accent }}
               >
                 + Add first driver
               </button>
@@ -882,7 +951,6 @@ const DriversView = ({ onBack }: { onBack: () => void }) => {
           ))
         )}
       </div>
-
       <Sheet
         open={sheet}
         onClose={() => setSheet(false)}
@@ -895,18 +963,14 @@ const DriversView = ({ onBack }: { onBack: () => void }) => {
             >
               Cancel
             </button>
-            <button
-              onClick={save}
-              disabled={saving}
-              className="py-3 rounded-xl bg-[#00a884] text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60"
-            >
+            <PrimaryButton onClick={save} disabled={saving} className="py-3">
               {saving ? (
                 <Loader2 size={15} className="animate-spin" />
               ) : (
                 <Check size={15} />
               )}
               {saving ? "Saving…" : "Save"}
-            </button>
+            </PrimaryButton>
           </div>
         }
       >
@@ -921,7 +985,6 @@ const DriversView = ({ onBack }: { onBack: () => void }) => {
             required={f.required}
           />
         ))}
-        {/* isPrimary toggle */}
         <div className="flex items-center justify-between bg-gray-50 px-4 py-3.5 rounded-xl mt-1">
           <div>
             <p className="text-sm font-semibold text-gray-800">Prime Driver</p>
@@ -929,7 +992,7 @@ const DriversView = ({ onBack }: { onBack: () => void }) => {
               Gets priority in driver suggestions
             </p>
           </div>
-          <Toggle
+          <ThemedToggle
             on={!!draft.isPrimary}
             toggle={() => setDraft((p) => ({ ...p, isPrimary: !p.isPrimary }))}
           />
@@ -947,9 +1010,356 @@ const DriversView = ({ onBack }: { onBack: () => void }) => {
 };
 
 /* ─────────────────────────────────────────
+   About View
+───────────────────────────────────────── */
+const AboutView = ({ onBack }: { onBack: () => void }) => {
+  const { tokens } = useTheme();
+  return (
+    <div className="flex flex-col h-full bg-[#efeae2]">
+      <SubHeader title="About" onBack={onBack} />
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-3">
+        <div
+          className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,.06)] overflow-hidden"
+          style={{ animation: "fadeSlide .3s both" }}
+        >
+          <div className="flex flex-col items-center py-8 gap-3">
+            <div
+              className="w-20 h-20 rounded-[22px] flex items-center justify-center shadow-lg"
+              style={{
+                background: "white",
+              }}
+            >
+              <img src="/logo.png" alt="Tripmint Logo" className="w-10 h-10" />
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-gray-900 text-xl">Tripmint</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Smart Infomatio Sharing Platform
+              </p>
+            </div>
+            <ThemedBadge>Version 2.1.0</ThemedBadge>
+          </div>
+          <div className="h-px bg-gray-100 mx-4" />
+          {/* {[
+            { label: "Environment", value: "Production" },
+            { label: "Region", value: "ap-south-1 (Mumbai)" },
+          ].map(({ label, value }, i) => (
+            <div key={label}>
+              {i > 0 && <div className="h-px bg-gray-100 mx-4" />}
+              <div className="flex items-center justify-between px-5 py-3.5">
+                <p className="text-[14px] text-gray-500">{label}</p>
+                <p className="text-[14px] font-semibold text-gray-800">
+                  {value}
+                </p>
+              </div>
+            </div>
+          ))} */}
+        </div>
+
+        <p className="px-1 pt-3 pb-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+          What's New in v2.1.0
+        </p>
+        <div
+          className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,.06)] px-5 py-4 space-y-3.5"
+          style={{ animation: "fadeSlide .3s 60ms both" }}
+        >
+          {[
+            {
+              dot: tokens.accent,
+              text: "Dark mode support across all screens",
+            },
+            {
+              dot: "#0284c7",
+              text: "Theme colour",
+            },
+            { dot: "#d97706", text: "Default booking lead time setting" },
+            { dot: "#10b981", text: "Admin PIN management & guarded deletes" },
+            { dot: "#e11d48", text: "Currency selector for billing display" },
+          ].map(({ dot, text }) => (
+            <div key={text} className="flex items-start gap-3">
+              <span
+                className="mt-[6px] w-2 h-2 rounded-full shrink-0"
+                style={{ background: dot }}
+              />
+              <p className="text-[14px] text-gray-700 leading-snug">{text}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="px-1 pt-3 pb-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+          Legal
+        </p>
+        <Card delay={120}>
+          {["Terms of Service", "Privacy Policy", "Open-source Licences"].map(
+            (label, i) => (
+              <div key={label}>
+                {i > 0 && <Divider />}
+                <button className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 text-left">
+                  <p className="text-[15px] font-medium text-gray-900">
+                    {label}
+                  </p>
+                  <ChevronRight size={15} className="text-gray-300" />
+                </button>
+              </div>
+            ),
+          )}
+        </Card>
+
+        <Footer />
+      </div>
+    </div>
+  );
+};
+
+/* ─────────────────────────────────────────
+   Notifications Sheet
+───────────────────────────────────────── */
+const NotifSheet = ({
+  open,
+  onClose,
+  settings,
+  onChange,
+}: {
+  open: boolean;
+  onClose: () => void;
+  settings: NotifSettings;
+  onChange: (k: keyof NotifSettings, v: boolean) => void;
+}) => (
+  <Sheet
+    open={open}
+    onClose={onClose}
+    title="Notification Preferences"
+    footer={
+      <PrimaryButton onClick={onClose} className="w-full py-3">
+        Done
+      </PrimaryButton>
+    }
+  >
+    {[
+      {
+        key: "notifyNewBooking" as keyof NotifSettings,
+        label: "New Booking Alerts",
+        sub: "Get notified when a new booking is created",
+      },
+      {
+        key: "notifyReminder" as keyof NotifSettings,
+        label: "Booking Reminders",
+        sub: "Remind before upcoming bookings are due",
+      },
+    ].map(({ key, label, sub }, i) => (
+      <div key={key}>
+        {i > 0 && <div className="h-px bg-gray-100" />}
+        <div className="flex items-center justify-between py-3">
+          <div>
+            <p className="text-[15px] font-medium text-gray-900">{label}</p>
+            <p className="text-[12px] text-gray-400 mt-0.5">{sub}</p>
+          </div>
+          <ThemedToggle
+            on={settings[key]}
+            toggle={() => onChange(key, !settings[key])}
+          />
+        </div>
+      </div>
+    ))}
+  </Sheet>
+);
+
+/* ─────────────────────────────────────────
+   App Preferences Sheet
+───────────────────────────────────────── */
+const PrefsSheet = ({
+  open,
+  onClose,
+  settings,
+  onChange,
+}: {
+  open: boolean;
+  onClose: () => void;
+  settings: PrefSettings;
+  onChange: <K extends keyof PrefSettings>(k: K, v: PrefSettings[K]) => void;
+}) => (
+  <Sheet
+    open={open}
+    onClose={onClose}
+    title="App Preferences"
+    footer={
+      <PrimaryButton onClick={onClose} className="w-full py-3">
+        Done
+      </PrimaryButton>
+    }
+  >
+    <SelectField
+      label="Default Booking Lead Time"
+      icon={<Clock size={12} />}
+      value={settings.defaultLeadTime}
+      onChange={(v) => onChange("defaultLeadTime", v)}
+      options={[
+        { value: "30 minutes", label: "30 minutes" },
+        { value: "1 hour", label: "1 hour" },
+        { value: "2 hours", label: "2 hours" },
+        { value: "4 hours", label: "4 hours" },
+        { value: "1 day", label: "1 day" },
+        { value: "2 days", label: "2 days" },
+      ]}
+    />
+    <SelectField
+      label="Currency"
+      icon={<Info size={12} />}
+      value={settings.currency}
+      onChange={(v) => onChange("currency", v)}
+      options={[
+        { value: "INR", label: "₹ Indian Rupee (INR)" },
+        { value: "USD", label: "$ US Dollar (USD)" },
+        { value: "EUR", label: "€ Euro (EUR)" },
+        { value: "GBP", label: "£ British Pound (GBP)" },
+        { value: "AED", label: "د.إ UAE Dirham (AED)" },
+      ]}
+    />
+  </Sheet>
+);
+
+/* ─────────────────────────────────────────
+   Theme Sheet  — reads/writes ThemeContext → localStorage
+───────────────────────────────────────── */
+const ThemeSheet = ({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) => {
+  const { color, setColor, tokens } = useTheme();
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="App Theme Colour"
+      footer={
+        <PrimaryButton onClick={onClose} className="w-full py-3">
+          Done
+        </PrimaryButton>
+      }
+    >
+      <div className="space-y-2">
+        {THEME_OPTIONS.map(({ key, label }) => {
+          const col = THEME_COLORS[key];
+          const selected = color === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setColor(key)}
+              className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl transition-all"
+              style={{
+                background: selected ? col.accentLight : "#f9fafb",
+                border: `2px solid ${selected ? col.accent : "transparent"}`,
+              }}
+            >
+              <span
+                className="w-8 h-8 rounded-full shrink-0 shadow-sm"
+                style={{ background: col.accent }}
+              />
+              <p className="flex-1 text-left text-[15px] font-medium text-gray-900">
+                {label}
+              </p>
+              {selected && <Check size={16} style={{ color: tokens.accent }} />}
+            </button>
+          );
+        })}
+      </div>
+    </Sheet>
+  );
+};
+
+/* ─────────────────────────────────────────
+   Admin PIN Sheet
+───────────────────────────────────────── */
+const PinSheet = ({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) => {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const submit = () => {
+    setError("");
+    if (next.length < 4) {
+      setError("PIN must be at least 4 digits.");
+      return;
+    }
+    if (next !== confirm) {
+      setError("PINs do not match.");
+      return;
+    }
+    setSuccess(true);
+    setTimeout(() => {
+      setSuccess(false);
+      onClose();
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+    }, 1400);
+  };
+
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="Change Admin PIN"
+      footer={
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={onClose}
+            className="py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <PrimaryButton onClick={submit} className="py-3">
+            {success ? <Check size={15} /> : <Lock size={15} />}
+            {success ? "Saved!" : "Update PIN"}
+          </PrimaryButton>
+        </div>
+      }
+    >
+      <Field
+        label="Current PIN"
+        icon={<Lock size={12} />}
+        value={current}
+        onChange={setCurrent}
+        placeholder="Enter current PIN"
+        type="password"
+      />
+      <Field
+        label="New PIN"
+        icon={<Lock size={12} />}
+        value={next}
+        onChange={setNext}
+        placeholder="Min 4 digits"
+        type="password"
+      />
+      <Field
+        label="Confirm PIN"
+        icon={<Lock size={12} />}
+        value={confirm}
+        onChange={setConfirm}
+        placeholder="Repeat new PIN"
+        type="password"
+      />
+      {error && (
+        <p className="text-sm text-red-500 font-medium px-1">{error}</p>
+      )}
+    </Sheet>
+  );
+};
+
+/* ─────────────────────────────────────────
    Main Settings Page
 ───────────────────────────────────────── */
-// 1. Update the prop type
 const SettingsPage = ({
   onClose,
   onLogout,
@@ -957,18 +1367,56 @@ const SettingsPage = ({
   onClose?: () => void;
   onLogout?: () => void;
 }) => {
+  const { tokens, color, darkMode, setDark } = useTheme();
+
   const [view, setView] = useState<View>("main");
-  const [notifs, setNotifs] = useState(true);
-  const [darkMode, setDark] = useState(false);
-  const [autoSave, setAutoSave] = useState(true);
+  const [notif, setNotif] = useState<NotifSettings>({
+    notifyNewBooking: true,
+    notifyReminder: true,
+  });
+  const [prefs, setPrefs] = useState<PrefSettings>({
+    defaultLeadTime: "2 hours",
+    currency: "INR",
+  });
+  const [notifSheet, setNotifSheet] = useState(false);
+  const [prefsSheet, setPrefsSheet] = useState(false);
+  const [themeSheet, setThemeSheet] = useState(false);
+  const [pinSheet, setPinSheet] = useState(false);
 
   if (view === "crew") return <CrewView onBack={() => setView("main")} />;
   if (view === "drivers") return <DriversView onBack={() => setView("main")} />;
+  if (view === "about") return <AboutView onBack={() => setView("main")} />;
+
+  const notifSummary =
+    [
+      notif.notifyNewBooking && "New bookings",
+      notif.notifyReminder && "Reminders",
+    ]
+      .filter(Boolean)
+      .join(", ") || "All muted";
+  const prefsSummary = `Lead: ${prefs.defaultLeadTime} · ${prefs.currency}`;
 
   return (
-    <div className="flex flex-col h-full bg-[#efeae2]">
-      {/* ── Header ── */}
-      <div className="bg-[#008069] shrink-0">
+    <div
+      className={`flex flex-col h-full ${darkMode ? "bg-[#1a1a1a]" : "bg-[#efeae2]"}`}
+    >
+      <NotifSheet
+        open={notifSheet}
+        onClose={() => setNotifSheet(false)}
+        settings={notif}
+        onChange={(k, v) => setNotif((p) => ({ ...p, [k]: v }))}
+      />
+      <PrefsSheet
+        open={prefsSheet}
+        onClose={() => setPrefsSheet(false)}
+        settings={prefs}
+        onChange={(k, v) => setPrefs((p) => ({ ...p, [k]: v }))}
+      />
+      <ThemeSheet open={themeSheet} onClose={() => setThemeSheet(false)} />
+      <PinSheet open={pinSheet} onClose={() => setPinSheet(false)} />
+
+      {/* Header */}
+      <div className="shrink-0" style={{ background: tokens.header }}>
         <div className="flex items-center gap-3 px-4 pt-12 pb-3">
           {onClose && (
             <button
@@ -985,37 +1433,36 @@ const SettingsPage = ({
             Settings
           </h1>
         </div>
-
-        {/* Profile card — elevated, overlapping the header */}
+        {/* Profile card */}
         <div className="px-3 pb-3">
           <div
             className="bg-white rounded-2xl flex items-center gap-4 px-4 py-4 shadow-lg cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors"
             style={{ animation: "fadeSlide .35s 40ms both" }}
           >
-            <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-[#00a884] to-[#005c4b] flex items-center justify-center shadow-md shrink-0">
-              <span className="text-white font-black text-xl">B</span>
+            <div
+              className="w-[58px] h-[58px] rounded-full flex items-center justify-center shadow-md shrink-0"
+              style={{
+                background: `linear-gradient(135deg, ${tokens.accent}, ${tokens.headerDark})`,
+              }}
+            >
+              <span className="text-white font-black text-xl">T</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-gray-900 text-[16px]">
-                Booking Admin
-              </p>
+              <p className="font-bold text-gray-900 text-[16px]">Tripmint</p>
               <p className="text-[13px] text-gray-500 truncate mt-0.5">
-                Transport operations manager
+                Smart Information Sharing Platform
               </p>
             </div>
             <div className="shrink-0 flex items-center gap-2">
-              <span className="text-[11px] font-bold text-[#00a884] bg-[#e8faf4] px-2.5 py-1 rounded-full">
-                Active
-              </span>
+              <ThemedBadge>Active</ThemedBadge>
               <ChevronRight size={16} className="text-gray-400" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Body ── */}
+      {/* Body */}
       <div className="flex-1 overflow-y-auto px-3 py-3">
-        {/* Data Management */}
         <SectionLabel>Data Management</SectionLabel>
         <Card delay={60}>
           <SettingRow
@@ -1037,101 +1484,100 @@ const SettingsPage = ({
           />
         </Card>
 
-        {/* Preferences */}
-        <SectionLabel>Preferences</SectionLabel>
-        <Card delay={140}>
+        <SectionLabel>Appearance</SectionLabel>
+        <Card delay={130}>
+          <SettingRow
+            icon={
+              darkMode ? (
+                <Moon size={16} className="text-white" />
+              ) : (
+                <Sun size={16} className="text-white" />
+              )
+            }
+            bg={darkMode ? "bg-[#6366f1]" : "bg-[#f59e0b]"}
+            label="Dark Mode"
+            sub={darkMode ? "Dark theme active" : "Light theme"}
+            right={
+              <ThemedToggle on={darkMode} toggle={() => setDark(!darkMode)} />
+            }
+            delay={130}
+          />
+          <Divider />
+          <SettingRow
+            icon={<Palette size={16} className="text-white" />}
+            bg="bg-[#ec4899]"
+            label="Theme Colour"
+            sub={THEME_OPTIONS.find((o) => o.key === color)?.label ?? "Teal"}
+            onClick={() => setThemeSheet(true)}
+            right={
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-5 h-5 rounded-full shadow-sm"
+                  style={{ background: tokens.accent }}
+                />
+                <ChevronRight size={15} className="text-gray-300" />
+              </div>
+            }
+            delay={145}
+          />
+        </Card>
+
+        <SectionLabel>Notifications</SectionLabel>
+        <Card delay={190}>
           <SettingRow
             icon={<Bell size={16} className="text-white" />}
             bg="bg-[#f59e0b]"
-            label="Notifications"
-            sub={notifs ? "Booking alerts enabled" : "All muted"}
-            right={<Toggle on={notifs} toggle={() => setNotifs((v) => !v)} />}
-            delay={140}
-          />
-          <Divider />
-          <SettingRow
-            icon={<Moon size={16} className="text-white" />}
-            bg="bg-[#6366f1]"
-            label="Dark Mode"
-            sub={darkMode ? "Dark theme active" : "Light theme"}
-            right={<Toggle on={darkMode} toggle={() => setDark((v) => !v)} />}
-            delay={155}
-          />
-          <Divider />
-          <SettingRow
-            icon={<Smartphone size={16} className="text-white" />}
-            bg="bg-[#ec4899]"
-            label="Auto-save Drafts"
-            sub={autoSave ? "Saves every 30 seconds" : "Manual only"}
-            right={
-              <Toggle on={autoSave} toggle={() => setAutoSave((v) => !v)} />
-            }
-            delay={170}
-          />
-          <Divider />
-          <SettingRow
-            icon={<Wifi size={16} className="text-white" />}
-            bg="bg-[#0ea5e9]"
-            label="Data & Storage"
-            sub="Sync and cache settings"
-            delay={185}
+            label="Notification Preferences"
+            sub={notifSummary}
+            onClick={() => setNotifSheet(true)}
+            delay={190}
           />
         </Card>
 
-        {/* Account */}
-        <SectionLabel>Account & Security</SectionLabel>
+        <SectionLabel>Booking Defaults</SectionLabel>
         <Card delay={240}>
           <SettingRow
-            icon={<Lock size={16} className="text-white" />}
+            icon={<Clock size={16} className="text-white" />}
             bg="bg-[#10b981]"
-            label="Privacy"
-            sub="Control visibility & permissions"
+            label="App Preferences"
+            sub={prefsSummary}
+            onClick={() => setPrefsSheet(true)}
             delay={240}
-          />
-          <Divider />
-          <SettingRow
-            icon={<Shield size={16} className="text-white" />}
-            bg="bg-[#3b82f6]"
-            label="Security"
-            sub="Two-factor auth, sessions"
-            delay={255}
           />
         </Card>
 
-        {/* Help */}
-        <SectionLabel>Help</SectionLabel>
-        <Card delay={300}>
+        <SectionLabel>Security</SectionLabel>
+        <Card delay={290}>
           <SettingRow
-            icon={<Star size={16} className="text-white" />}
-            bg="bg-[#f59e0b]"
-            label="Rate the App"
-            sub="Leave a review"
-            delay={300}
+            icon={<Lock size={16} className="text-white" />}
+            bg="bg-[#3b82f6]"
+            label="Change Admin PIN"
+            sub="Update the guarded-delete PIN"
+            onClick={() => setPinSheet(true)}
+            delay={290}
           />
-          <Divider />
-          <SettingRow
-            icon={<HelpCircle size={16} className="text-white" />}
-            bg="bg-[#8b5cf6]"
-            label="Help & Support"
-            sub="FAQs, contact us"
-            delay={315}
-          />
-          <Divider />
+        </Card>
+
+        <SectionLabel>App</SectionLabel>
+        <Card delay={335}>
           <SettingRow
             icon={<Info size={16} className="text-white" />}
             bg="bg-gray-400"
             label="About"
-            sub="Version 2.1.0"
+            sub="Version, changelog & legal"
+            onClick={() => setView("about")}
+            delay={335}
             right={
-              <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
-                v2.1.0
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
+                  v2.1.0
+                </span>
+                <ChevronRight size={15} className="text-gray-300" />
+              </div>
             }
-            delay={330}
           />
         </Card>
 
-        {/* Logout */}
         <div
           className="mt-4 mb-2"
           style={{ animation: "fadeSlide .35s 360ms both" }}
@@ -1147,23 +1593,13 @@ const SettingsPage = ({
             />
           </Card>
         </div>
-
         <Footer />
       </div>
 
       <style>{`
-        @keyframes fadeSlide {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes sheetUp {
-          from { opacity: 0; transform: translateY(50px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes popIn {
-          from { opacity: 0; transform: scale(.85); }
-          to   { opacity: 1; transform: scale(1); }
-        }
+        @keyframes fadeSlide { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes sheetUp   { from{opacity:0;transform:translateY(50px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes popIn     { from{opacity:0;transform:scale(.85)} to{opacity:1;transform:scale(1)} }
       `}</style>
     </div>
   );

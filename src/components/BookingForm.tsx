@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import type { BookingMode, MessageType, Passenger } from "../messageTemplate";
 import { addDriver } from "../services/drivers";
+import { useTheme } from "../theme/ThemeContext";
 import Crewautocomplete from "./Crewautocomplete";
 import DriverSearchInput from "./ui/DriverSearchInput";
 import LocationInput from "./ui/LocationInput";
@@ -141,6 +142,26 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
   const timeRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const otpRef = useRef<HTMLInputElement>(null);
+
+  const { tokens } = useTheme();
+
+  const accentText = { color: tokens.accent };
+
+  // const accentSoft = {
+  //   background: `${tokens.accent}15`,
+  //   borderColor: tokens.accent,
+  //   color: tokens.accent,
+  // };
+
+  // const accentButton = {
+  //   background: tokens.accent,
+  //   borderColor: tokens.accent,
+  //   color: "white",
+  // };
+
+  // const accentToggle = (state: boolean) => ({
+  //   backgroundColor: state ? tokens.accent : "#d1d5db",
+  // });
 
   const { today, tomorrow, currentTime } = useMemo(() => {
     const now = new Date();
@@ -435,7 +456,10 @@ const BookingForm = ({ onGenerate, onSaveDraft, initialDraft }: Props) => {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* ── Booking Mode ─────────────────────────────────────────── */}
       <section className="space-y-2">
-        <h3 className="font-semibold text-[#075E54] flex items-center gap-2 text-sm">
+        <h3
+          className="font-semibold flex items-center gap-2 text-sm"
+          style={accentText}
+        >
           <Users size={16} /> Booking Type
         </h3>
         <div className="flex gap-2 flex-wrap">
